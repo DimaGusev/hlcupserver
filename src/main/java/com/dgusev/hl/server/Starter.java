@@ -19,12 +19,17 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestTemplate;
 
 import java.io.*;
 import java.net.InetSocketAddress;
 import java.util.Collections;
+import java.util.Date;
 import java.util.Scanner;
 import java.util.TreeMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -140,6 +145,35 @@ public class Starter implements CommandLineRunner {
         System.gc();
         long t2 = System.currentTimeMillis();
         System.out.println("Load time: " + (t2 - t1));
+        long t3 = System.currentTimeMillis();
+        System.out.println("Start warm-up");
+        ExecutorService executorService = Executors.newFixedThreadPool(4);
+        for (int i = 0; i< 4; i++) {
+            executorService.submit(()->{
+                RestTemplate restTemplate = new RestTemplate();
+                while (!Thread.currentThread().isInterrupted()) {
+                    restTemplate.getForEntity("http://localhost:" + serverPort+"/users/1", String.class);
+                    restTemplate.getForEntity("http://localhost:" + serverPort+"/users/bad", String.class);
+                    restTemplate.getForEntity("http://localhost:" + serverPort+"/locations/1", String.class);
+                    restTemplate.getForEntity("http://localhost:" + serverPort+"/locations/bad", String.class);
+                    restTemplate.getForEntity("http://localhost:" + serverPort+"/visits/1", String.class);
+                    restTemplate.getForEntity("http://localhost:" + serverPort+"/visits/bad", String.class);
+                    restTemplate.getForEntity("http://localhost:" + serverPort+"/users/1/visits", String.class);
+                    restTemplate.getForEntity("http://localhost:" + serverPort+"/users/9999999/visits", String.class);
+                    restTemplate.getForEntity("http://localhost:" + serverPort+"/locations/1/avg", String.class);
+                    restTemplate.getForEntity("http://localhost:" + serverPort+"/locations/9999999/avg", String.class);
+                }
+                return null;
+            });
+        }
+        Thread.sleep(400000);
+        executorService.shutdownNow();
+        executorService.awaitTermination(Long.MAX_VALUE, TimeUnit.SECONDS);
+        long t4 = System.currentTimeMillis();
+        System.gc();
+        System.out.println("Warm-up time: " + (t4 - t3));
+        System.out.println(new Date().getTime());
+
     }
 
 

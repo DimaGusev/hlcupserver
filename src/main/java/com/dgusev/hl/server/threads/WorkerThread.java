@@ -2,7 +2,9 @@ package com.dgusev.hl.server.threads;
 
 import com.dgusev.hl.server.model.VisitResponse;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.util.AttributeKey;
+import io.netty.util.CharsetUtil;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,6 +19,7 @@ public class WorkerThread extends Thread {
     public final byte[] ARRAY_OUTPUT_CONTAINER = new byte[10000];
     public final List<VisitResponse> VISIT_RESPONSE = new ArrayList<>(600);
     public final AttributeKey<ByteBuf> ATTRIBUTE_KEY = AttributeKey.valueOf("fragment");
+    public final ByteBuf ENCODE_BUFFER = Unpooled.directBuffer(10000);
 
     public WorkerThread(Runnable runnable) {
         super(runnable);

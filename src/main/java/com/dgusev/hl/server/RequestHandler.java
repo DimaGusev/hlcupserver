@@ -13,8 +13,7 @@ import com.dgusev.hl.server.parsers.UserParser;
 import com.dgusev.hl.server.parsers.VisitParser;
 import com.dgusev.hl.server.service.TravelService;
 import com.dgusev.hl.server.threads.WorkerThread;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
+import io.netty.buffer.*;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
@@ -55,6 +54,8 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
             char[] BUFFER = workerThread.BUFFER;
             byte[] ARRAY_INPUT_CONTAINER = workerThread.ARRAY_INPUT_CONTAINER;
             byte[] ARRAY_OUTPUT_CONTAINER = workerThread.ARRAY_OUTPUT_CONTAINER;
+            ByteBuf ENCODE_BUFFER = workerThread.ENCODE_BUFFER;
+            ENCODE_BUFFER.retain();
             AttributeKey<ByteBuf> attributeKey = workerThread.ATTRIBUTE_KEY;
             List<VisitResponse> VISIT_RESPONSE = workerThread.VISIT_RESPONSE;
             ByteBuf buf = (ByteBuf) msg;
@@ -75,7 +76,6 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
                 return;
             }
             int pointer = 0;
-            ByteBuf ENCODE_BUFFER = null;
             if (BUFFER[0] == 'G') {
                 pointer += 4;
                 int start = pointer;
@@ -92,10 +92,9 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
                                 throw new EntityNotFound();
                             }
                             travelService.validateUser(id);
-                            ENCODE_BUFFER = ctx.alloc().directBuffer(10000);
                             ENCODE_BUFFER.clear();
                             WebCache.encodeUser(id, ENCODE_BUFFER);
-                            ctx.writeAndFlush(ENCODE_BUFFER);
+                            ctx.writeAndFlush( ENCODE_BUFFER);
                         } catch (EntityNotFound | NumberFormatException ex) {
                             ctx.writeAndFlush(RESPONSE_404.retain().duplicate());
                         }
@@ -138,7 +137,6 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
                                 if (offset == 0) {
                                     ctx.writeAndFlush(EMPTY_VISITS.retain().duplicate());
                                 } else {
-                                    ENCODE_BUFFER = ctx.alloc().directBuffer(10000);
                                     ENCODE_BUFFER.clear();
                                     ENCODE_BUFFER.writeBytes(VISIT_HEADER);
                                     ENCODE_BUFFER.writeBytes(DOUBLE_NL);
@@ -169,7 +167,6 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
                                 throw new EntityNotFound();
                             }
                             travelService.validateLocation(id);
-                            ENCODE_BUFFER = ctx.alloc().directBuffer(10000);
                             ENCODE_BUFFER.clear();
                             WebCache.encodeLocation(id, ENCODE_BUFFER);
 
@@ -237,7 +234,7 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
                                     byte[] result = new byte[binaryResponse.length + header.length];
                                     System.arraycopy(header, 0, result, 0, header.length);
                                     System.arraycopy(binaryResponse, 0, result, header.length, binaryResponse.length);
-                                    ENCODE_BUFFER = ctx.alloc().directBuffer(10000);
+                                    ENCODE_BUFFER.clear();
                                     ENCODE_BUFFER.writeBytes(result);
                                     ctx.writeAndFlush(ENCODE_BUFFER);
                                 }
@@ -256,7 +253,6 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
                         if (id >= 11000000) {
                             throw new EntityNotFound();
                         }
-                        ENCODE_BUFFER = ctx.alloc().directBuffer(10000);
                         ENCODE_BUFFER.clear();
                         WebCache.encodeVisit(travelService.getVisit(id), ENCODE_BUFFER, ARRAY_OUTPUT_CONTAINER);
                         ctx.writeAndFlush(ENCODE_BUFFER);
@@ -378,9 +374,6 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
                 System.out.println(BUFFER);
                 ctx.close();
             }
-            if (ENCODE_BUFFER != null) {
-                release(ENCODE_BUFFER);
-            }
             release((ByteBuf) msg);
             release(buf);
         } catch (Throwable e) {
@@ -389,7 +382,6 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
             ctx.close();
         }
     }
-
 
     private String decode(String parameter) {
         try {
