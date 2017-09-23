@@ -25,7 +25,7 @@ import java.util.concurrent.TimeUnit;
 import static io.netty.channel.unix.UnixChannelUtil.computeRemoteAddr;
 import static io.netty.util.internal.ObjectUtil.checkNotNull;
 
-abstract class AbstractEpoll0Channel  extends AbstractChannel implements UnixChannel {
+public abstract class AbstractEpoll0Channel  extends AbstractChannel implements UnixChannel {
     private static final ClosedChannelException DO_CLOSE_CLOSED_CHANNEL_EXCEPTION = ThrowableUtil.unknownStackTrace(
             new ClosedChannelException(), AbstractEpoll0Channel.class, "doClose()");
     private static final ChannelMetadata METADATA = new ChannelMetadata(false);
@@ -307,7 +307,7 @@ abstract class AbstractEpoll0Channel  extends AbstractChannel implements UnixCha
         return localReadAmount;
     }
 
-    protected final int doWriteBytes(ByteBuf buf, int writeSpinCount) throws Exception {
+    public final int doWriteBytes(ByteBuf buf, int writeSpinCount) throws Exception {
         int readableBytes = buf.readableBytes();
         int writtenBytes = 0;
         if (buf.hasMemoryAddress()) {

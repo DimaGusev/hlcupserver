@@ -8,6 +8,7 @@ import io.netty.channel.unix.FileDescriptor;
 import io.netty.channel.unix.IovArray;
 import io.netty.channel.unix.SocketWritableByteChannel;
 import io.netty.channel.unix.UnixChannelUtil;
+import io.netty.util.ReferenceCountUtil;
 import io.netty.util.internal.PlatformDependent;
 import io.netty.util.internal.StringUtil;
 import io.netty.util.internal.ThrowableUtil;
@@ -768,9 +769,11 @@ abstract class AbstractEpoll0StreamChannel  extends AbstractEpoll0Channel implem
                     }
                     allocHandle.incMessagesRead(1);
                     readPending = false;
-                    pipeline.fireChannelRead(byteBuf);
+                    ChannelHandlerContext context = pipeline.firstContext();
+                    ReferenceCountUtil.touch(byteBuf, context);
+                    ((ChannelInboundHandler)(pipeline.first())).channelRead(context, byteBuf);
+                    //pipeline.fireChannelRead(byteBuf);
                     byteBuf = null;
-
                     if (shouldBreakEpollInReady(config)) {
                         // We need to do this for two reasons:
                         //
@@ -787,8 +790,8 @@ abstract class AbstractEpoll0StreamChannel  extends AbstractEpoll0Channel implem
                     }
                 } while (allocHandle.continueReading());
 
-                allocHandle.readComplete();
-                pipeline.fireChannelReadComplete();
+                //allocHandle.readComplete();
+                //pipeline.fireChannelReadComplete();
 
                 if (close) {
                     shutdownInput(false);
