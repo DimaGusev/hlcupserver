@@ -30,8 +30,6 @@ import static java.lang.Math.min;
  */
 public class Epoll0EventLoop extends SingleThreadEventLoop {
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(Epoll0EventLoop.class);
-    private static final AtomicIntegerFieldUpdater<Epoll0EventLoop> WAKEN_UP_UPDATER =
-            AtomicIntegerFieldUpdater.newUpdater(Epoll0EventLoop.class, "wakenUp");
 
     static {
         // Ensure JNI is initialized by the time this class is loaded by this time!
@@ -129,10 +127,8 @@ public class Epoll0EventLoop extends SingleThreadEventLoop {
 
     @Override
     protected void wakeup(boolean inEventLoop) {
-        if (!inEventLoop && WAKEN_UP_UPDATER.compareAndSet(this, 0, 1)) {
             // write to the evfd which will then wake-up epoll_wait(...)
             Native.eventFdWrite(eventFd.intValue(), 1L);
-        }
     }
 
     /**
@@ -206,18 +202,7 @@ public class Epoll0EventLoop extends SingleThreadEventLoop {
     }
 
     private int epollWait(boolean oldWakeup) throws IOException {
-        // If a task was submitted when wakenUp value was 1, the task didn't get a chance to produce wakeup event.
-        // So we need to check task queue again before calling epoll_wait. If we don't, the task might be pended
-        // until epoll_wait was timed out. It might be pended until idle timeout if IdleStateHandler existed
-        // in pipeline.
-        if (oldWakeup && hasTasks()) {
-            return epollWaitNow();
-        }
-
-        long totalDelay = delayNanos(System.nanoTime());
-        int delaySeconds = (int) min(totalDelay / 1000000000L, Integer.MAX_VALUE);
-        return Native.epollWait(epollFd, events, timerFd, delaySeconds,
-                (int) min(totalDelay - delaySeconds * 1000000000L, Integer.MAX_VALUE));
+        return epollWaitNow();
     }
 
     private int epollWaitNow() throws IOException {
@@ -228,86 +213,17 @@ public class Epoll0EventLoop extends SingleThreadEventLoop {
     protected void run() {
         for (;;) {
             try {
-                int strategy = selectStrategy.calculateStrategy(selectNowSupplier, hasTasks());
-                switch (strategy) {
-                    case SelectStrategy.CONTINUE:
-                        continue;
-                    case SelectStrategy.SELECT:
-                        strategy = epollWait(WAKEN_UP_UPDATER.getAndSet(this, 0) == 1);
-
-                        // 'wakenUp.compareAndSet(false, true)' is always evaluated
-                        // before calling 'selector.wakeup()' to reduce the wake-up
-                        // overhead. (Selector.wakeup() is an expensive operation.)
-                        //
-                        // However, there is a race condition in this approach.
-                        // The race condition is triggered when 'wakenUp' is set to
-                        // true too early.
-                        //
-                        // 'wakenUp' is set to true too early if:
-                        // 1) Selector is waken up between 'wakenUp.set(false)' and
-                        //    'selector.select(...)'. (BAD)
-                        // 2) Selector is waken up between 'selector.select(...)' and
-                        //    'if (wakenUp.get()) { ... }'. (OK)
-                        //
-                        // In the first case, 'wakenUp' is set to true and the
-                        // following 'selector.select(...)' will wake up immediately.
-                        // Until 'wakenUp' is set to false again in the next round,
-                        // 'wakenUp.compareAndSet(false, true)' will fail, and therefore
-                        // any attempt to wake up the Selector will fail, too, causing
-                        // the following 'selector.select(...)' call to block
-                        // unnecessarily.
-                        //
-                        // To fix this problem, we wake up the selector again if wakenUp
-                        // is true immediately after selector.select(...).
-                        // It is inefficient in that it wakes up the selector for both
-                        // the first case (BAD - wake-up required) and the second case
-                        // (OK - no wake-up required).
-
-                        if (wakenUp == 1) {
-                            Native.eventFdWrite(eventFd.intValue(), 1L);
-                        }
-                        // fallthrough
-                    default:
-                }
-
-                final int ioRatio = this.ioRatio;
-                if (ioRatio == 100) {
+                int count = epollWaitNow();
                     try {
-                        if (strategy > 0) {
-                            processReady(events, strategy);
+                        if (count > 0) {
+                            processReady(events, count);
                         }
                     } finally {
                         // Ensure we always run tasks.
-                        runAllTasks();
-                    }
-                } else {
-                    final long ioStartTime = System.nanoTime();
-
-                    try {
-                        if (strategy > 0) {
-                            processReady(events, strategy);
+                        if (hasTasks()) {
+                            runAllTasks();
                         }
-                    } finally {
-                        // Ensure we always run tasks.
-                        final long ioTime = System.nanoTime() - ioStartTime;
-                        runAllTasks(ioTime * (100 - ioRatio) / ioRatio);
                     }
-                }
-                if (allowGrowing && strategy == events.length()) {
-                    //increase the size of the array as we needed the whole space for the events
-                    events.increase();
-                }
-            } catch (Throwable t) {
-                handleLoopException(t);
-            }
-            // Always handle shutdown even if the loop processing threw an exception.
-            try {
-                if (isShuttingDown()) {
-                    closeAll();
-                    if (confirmShutdown()) {
-                        break;
-                    }
-                }
             } catch (Throwable t) {
                 handleLoopException(t);
             }
