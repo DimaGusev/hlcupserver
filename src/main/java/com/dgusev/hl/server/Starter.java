@@ -10,11 +10,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
+import io.netty.channel.epoll.Epoll0EventLoopGroup;
+import io.netty.channel.epoll.Epoll0ServerSocketChannel;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.epoll.EpollServerSocketChannel;
-import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
-import io.netty.channel.socket.nio.NioServerSocketChannel;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
@@ -64,8 +64,8 @@ public class Starter implements CommandLineRunner {
 
         new Thread(() -> {
             ServerBootstrap serverBootstrap = new ServerBootstrap()
-                    .group(new EpollEventLoopGroup(), new EpollEventLoopGroup(4, new WorkerThreadFactory()))
-                    .channel(EpollServerSocketChannel.class)
+                    .group(new Epoll0EventLoopGroup(), new Epoll0EventLoopGroup(3, new WorkerThreadFactory()))
+                    .channel(Epoll0ServerSocketChannel.class)
                     .childHandler(new ChannelInitializer<SocketChannel>() {
                         @Override
                         protected void initChannel(SocketChannel socketChannel) throws Exception {

@@ -1,5 +1,7 @@
 package com.dgusev.hl.server.threads;
 
+import net.openhft.affinity.AffinityLock;
+
 import java.util.concurrent.ThreadFactory;
 
 /**
