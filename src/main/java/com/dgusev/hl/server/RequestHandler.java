@@ -59,22 +59,26 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
             ENCODE_BUFFER.retain();
             AttributeKey<ByteBuf> attributeKey = workerThread.ATTRIBUTE_KEY;
             List<VisitResponse> VISIT_RESPONSE = workerThread.VISIT_RESPONSE;
-            ByteBuf buf = (ByteBuf) msg;
-            if (ctx.channel().attr(attributeKey).get() != null) {
-                ByteBuf oldBuffer = ctx.channel().attr(attributeKey).get();
-                oldBuffer.writeBytes((ByteBuf) msg);
-                release((ByteBuf) msg);
-                msg = oldBuffer;
-                buf = oldBuffer;
-                ctx.channel().attr(attributeKey).set(null);
+            ByteBuf fragmentedMessage = ctx.channel().attr(attributeKey).get();
+            if (fragmentedMessage != null) {
+                fragmentedMessage.writeBytes((ByteBuf) msg);
+                msg = fragmentedMessage;
             }
+            ByteBuf buf = (ByteBuf) msg;
             int count = StringUTFCodec.decode(buf, ARRAY_INPUT_CONTAINER, BUFFER);
-
             if ((BUFFER[0] == 'P' && ((BUFFER[count - 1] != '\n' || BUFFER[count - 2] != '\r' || BUFFER[count - 3] != '}') && (!new String(BUFFER, 0, count).contains("Content-Length: 0")))) || (BUFFER[0] == 'G' && (BUFFER[count - 1] != '\n' || BUFFER[count - 2] != '\r' || BUFFER[count - 3] != '\n' || BUFFER[count - 4] != '\r'))) {
+                ByteBuf byteBuf = ctx.channel().attr(attributeKey).get();
+                if (byteBuf == null) {
+                    byteBuf = ctx.alloc().directBuffer(1000);
+                    ctx.channel().attr(attributeKey).set(byteBuf);
+                }
                 buf.readerIndex(0);
-                ctx.channel().attr(attributeKey).set(buf);
-                buf.retain();
+                byteBuf.writeBytes(buf);
+                //release(buf);
                 return;
+            } else if (fragmentedMessage != null) {
+                ctx.channel().attr(attributeKey).set(null);
+                release(fragmentedMessage);
             }
             int pointer = 0;
             if (BUFFER[0] == 'G') {
@@ -141,7 +145,7 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
                                     ENCODE_BUFFER.clear();
                                     ENCODE_BUFFER.writeBytes(VISIT_HEADER);
                                     ENCODE_BUFFER.writeBytes(DOUBLE_NL);
-                                    int responseSize = JsonFormatters.format(VISIT_RESPONSE, offset, ENCODE_BUFFER, ARRAY_OUTPUT_CONTAINER);
+                                    int responseSize = JsonFormatters.formatVisitsList(VISIT_RESPONSE, offset, ENCODE_BUFFER, ARRAY_OUTPUT_CONTAINER);
                                     byte[] bCount = Integer.valueOf(responseSize).toString().getBytes();
                                     ENCODE_BUFFER.writeBytes(DOUBLE_NL);
                                     int position = ENCODE_BUFFER.writerIndex();
@@ -375,10 +379,9 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
                 System.out.println(BUFFER);
                 ctx.close();
             }
-            release((ByteBuf) msg);
-            release(buf);
+            //release((ByteBuf) msg);
+            //release(buf);
         } catch (Throwable e) {
-            System.out.println("PIZDA");
             e.printStackTrace();
             ctx.close();
         }

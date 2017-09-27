@@ -1,5 +1,7 @@
 package io.netty.channel.epoll;
 
+import com.dgusev.hl.server.RequestHandler;
+import com.dgusev.hl.server.threads.WorkerThread;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.*;
@@ -20,6 +22,7 @@ import java.net.SocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.WritableByteChannel;
+import java.util.Date;
 import java.util.Queue;
 import java.util.concurrent.Executor;
 
@@ -724,15 +727,10 @@ abstract class AbstractEpoll0StreamChannel  extends AbstractEpoll0Channel implem
         @Override
         void epollInReady() {
             final ChannelConfig config = config();
-            if (shouldBreakEpollInReady(config)) {
-                clearEpollIn0();
-                return;
-            }
             final EpollRecvByteAllocatorHandle allocHandle = recvBufAllocHandle();
             allocHandle.edgeTriggered(isFlagSet(Native.EPOLLET));
 
             final ChannelPipeline pipeline = pipeline();
-            final ByteBufAllocator allocator = config.getAllocator();
             allocHandle.reset(config);
             epollInBefore();
 
@@ -758,11 +756,13 @@ abstract class AbstractEpoll0StreamChannel  extends AbstractEpoll0Channel implem
 
                     // we use a direct buffer here as the native implementations only be able
                     // to handle direct buffers.
-                    byteBuf = allocHandle.allocate(allocator);
+                    //byteBuf = allocHandle.allocate(allocator);
+                    byteBuf = ((WorkerThread)Thread.currentThread()).READ_BUFFER;
+                    byteBuf.clear();
                     allocHandle.lastBytesRead(doReadBytes(byteBuf));
                     if (allocHandle.lastBytesRead() <= 0) {
                         // nothing was read, release the buffer.
-                        byteBuf.release();
+                        //byteBuf.release();
                         byteBuf = null;
                         close = allocHandle.lastBytesRead() < 0;
                         break;
@@ -771,23 +771,12 @@ abstract class AbstractEpoll0StreamChannel  extends AbstractEpoll0Channel implem
                     readPending = false;
                     ChannelHandlerContext context = pipeline.firstContext();
                     ReferenceCountUtil.touch(byteBuf, context);
+                    if (!(pipeline.first() instanceof RequestHandler)) {
+                        int i = 1000;
+                    }
                     ((ChannelInboundHandler)(pipeline.first())).channelRead(context, byteBuf);
                     //pipeline.fireChannelRead(byteBuf);
                     byteBuf = null;
-                    if (shouldBreakEpollInReady(config)) {
-                        // We need to do this for two reasons:
-                        //
-                        // - If the input was shutdown in between (which may be the case when the user did it in the
-                        //   fireChannelRead(...) method we should not try to read again to not produce any
-                        //   miss-leading exceptions.
-                        //
-                        // - If the user closes the channel we need to ensure we not try to read from it again as
-                        //   the filedescriptor may be re-used already by the OS if the system is handling a lot of
-                        //   concurrent connections and so needs a lot of filedescriptors. If not do this we risk
-                        //   reading data from a filedescriptor that belongs to another socket then the socket that
-                        //   was "wrapped" by this Channel implementation.
-                        break;
-                    }
                 } while (allocHandle.continueReading());
 
                 //allocHandle.readComplete();
@@ -1024,4 +1013,5 @@ abstract class AbstractEpoll0StreamChannel  extends AbstractEpoll0Channel implem
             return AbstractEpoll0StreamChannel.this.alloc();
         }
     }
+
 }

@@ -14,7 +14,9 @@ import io.netty.channel.epoll.Epoll0EventLoopGroup;
 import io.netty.channel.epoll.Epoll0ServerSocketChannel;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.epoll.EpollServerSocketChannel;
+import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
+import io.netty.channel.socket.nio.NioServerSocketChannel;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
@@ -64,7 +66,7 @@ public class Starter implements CommandLineRunner {
 
         new Thread(() -> {
             ServerBootstrap serverBootstrap = new ServerBootstrap()
-                    .group(new Epoll0EventLoopGroup(), new Epoll0EventLoopGroup(3, new WorkerThreadFactory()))
+                    .group(new Epoll0EventLoopGroup(true), new Epoll0EventLoopGroup(false,3, new WorkerThreadFactory()))
                     .channel(Epoll0ServerSocketChannel.class)
                     .childHandler(new ChannelInitializer<SocketChannel>() {
                         @Override
@@ -152,16 +154,16 @@ public class Starter implements CommandLineRunner {
             executorService.submit(()->{
                 RestTemplate restTemplate = new RestTemplate();
                 while (!Thread.currentThread().isInterrupted()) {
-                    restTemplate.getForEntity("http://localhost:" + serverPort+"/users/1", String.class);
-                    restTemplate.getForEntity("http://localhost:" + serverPort+"/users/bad", String.class);
-                    restTemplate.getForEntity("http://localhost:" + serverPort+"/locations/1", String.class);
-                    restTemplate.getForEntity("http://localhost:" + serverPort+"/locations/bad", String.class);
-                    restTemplate.getForEntity("http://localhost:" + serverPort+"/visits/1", String.class);
-                    restTemplate.getForEntity("http://localhost:" + serverPort+"/visits/bad", String.class);
-                    restTemplate.getForEntity("http://localhost:" + serverPort+"/users/1/visits", String.class);
-                    restTemplate.getForEntity("http://localhost:" + serverPort+"/users/9999999/visits", String.class);
-                    restTemplate.getForEntity("http://localhost:" + serverPort+"/locations/1/avg", String.class);
-                    restTemplate.getForEntity("http://localhost:" + serverPort+"/locations/9999999/avg", String.class);
+                    request(restTemplate,"http://localhost:" + serverPort+"/users/1");
+                    request(restTemplate,"http://localhost:" + serverPort+"/users/bad");
+                    request(restTemplate,"http://localhost:" + serverPort+"/locations/1");
+                    request(restTemplate,"http://localhost:" + serverPort+"/locations/bad");
+                    request(restTemplate,"http://localhost:" + serverPort+"/visits/1");
+                    request(restTemplate,"http://localhost:" + serverPort+"/visits/bad");
+                    request(restTemplate,"http://localhost:" + serverPort+"/users/1/visits");
+                    request(restTemplate,"http://localhost:" + serverPort+"/users/9999999/visits");
+                    request(restTemplate,"http://localhost:" + serverPort+"/locations/1/avg");
+                    request(restTemplate,"http://localhost:" + serverPort+"/locations/9999999/avg");
                 }
                 return null;
             });
@@ -174,6 +176,14 @@ public class Starter implements CommandLineRunner {
         System.out.println("Warm-up time: " + (t4 - t3));
         System.out.println(new Date().getTime());
 
+    }
+
+    private void request(RestTemplate restTemplate, String path) {
+        try {
+            restTemplate.getForEntity(path, String.class);
+        } catch (Exception ex) {
+
+        }
     }
 
 

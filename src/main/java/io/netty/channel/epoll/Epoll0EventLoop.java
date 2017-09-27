@@ -1,5 +1,6 @@
 package io.netty.channel.epoll;
 
+import com.dgusev.hl.server.threads.Epoll0SingleThreadEventLoop;
 import io.netty.channel.EventLoop;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.SelectStrategy;
@@ -19,8 +20,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Queue;
-import java.util.concurrent.Callable;
-import java.util.concurrent.Executor;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 import static java.lang.Math.min;
@@ -28,7 +28,7 @@ import static java.lang.Math.min;
 /**
  * Created by dgusev on 22.09.2017.
  */
-public class Epoll0EventLoop extends SingleThreadEventLoop {
+public class Epoll0EventLoop extends Epoll0SingleThreadEventLoop {
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(Epoll0EventLoop.class);
 
     static {
@@ -59,9 +59,14 @@ public class Epoll0EventLoop extends SingleThreadEventLoop {
     };
     private volatile int wakenUp;
     private volatile int ioRatio = 50;
+    private boolean isAcceptor;
+
+    public void setAcceptor(boolean acceptor) {
+        isAcceptor = acceptor;
+    }
 
     Epoll0EventLoop(EventLoopGroup parent, Executor executor, int maxEvents,
-                   SelectStrategy strategy, RejectedExecutionHandler rejectedExecutionHandler) {
+                    SelectStrategy strategy, RejectedExecutionHandler rejectedExecutionHandler) {
         super(parent, executor, false, DEFAULT_MAX_PENDING_TASKS, rejectedExecutionHandler);
         selectStrategy = ObjectUtil.checkNotNull(strategy, "strategy");
         if (maxEvents == 0) {
@@ -134,11 +139,11 @@ public class Epoll0EventLoop extends SingleThreadEventLoop {
     /**
      * Register the given epoll with this {@link EventLoop}.
      */
-    void add(AbstractEpoll0Channel ch) throws IOException {
-        assert inEventLoop();
+    public void add(AbstractEpoll0Channel ch) throws IOException {
+        //assert inEventLoop();
         int fd = ch.socket.intValue();
-        Native.epollCtlAdd(epollFd.intValue(), fd, ch.flags);
         channels.put(fd, ch);
+        Native.epollCtlAdd(epollFd.intValue(), fd, ch.flags);
     }
 
     /**
@@ -211,23 +216,57 @@ public class Epoll0EventLoop extends SingleThreadEventLoop {
 
     @Override
     protected void run() {
-        for (;;) {
+        if (isAcceptor) {
+            ExecutorService executorService = Executors.newFixedThreadPool(1);
+            executorService.submit(()->{
+                while (!Thread.currentThread().isInterrupted()) {
+                    try {
+                        Runnable runnable = pollTask();
+                        if (runnable != null) {
+                            runnable.run();
+                        }
+                    } catch (Throwable ex) {
+                        ex.printStackTrace();
+                    }
+                }
+            });
+            try {
+                Thread.sleep(5000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            executorService.shutdownNow();
+            try {
+                executorService.awaitTermination(Long.MAX_VALUE, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            System.out.println("Acceptor started");
+        }
+        for (; ; ) {
             try {
                 int count = epollWaitNow();
-                    try {
-                        if (count > 0) {
-                            processReady(events, count);
-                        }
-                    } finally {
-                        // Ensure we always run tasks.
-                        if (hasTasks()) {
-                            runAllTasks();
-                        }
-                    }
+                if (count > 0) {
+                    processReady(events, count);
+                }
+            } catch (Throwable t) {
+                    handleLoopException(t);
+            }
+        }
+       /*
+        for (; ; ) {
+            try {
+                int count = epollWaitNow();
+                if (count > 0) {
+                    processReady(events, count);
+                }
+                if (hasTasks()) {
+                    runAllTasks();
+                }
             } catch (Throwable t) {
                 handleLoopException(t);
             }
-        }
+        }*/
     }
 
     private static void handleLoopException(Throwable t) {
@@ -272,7 +311,6 @@ public class Epoll0EventLoop extends SingleThreadEventLoop {
                 Native.timerFdRead(fd);
             } else {
                 final long ev = events.events(i);
-
                 AbstractEpoll0Channel ch = channels.get(fd);
                 if (ch != null) {
                     // Don't change the ordering of processing EPOLLOUT | EPOLLRDHUP / EPOLLIN if you're not 100%
@@ -281,18 +319,6 @@ public class Epoll0EventLoop extends SingleThreadEventLoop {
                     // past.
                     AbstractEpoll0Channel.AbstractEpollUnsafe unsafe = (AbstractEpoll0Channel.AbstractEpollUnsafe) ch.unsafe();
 
-                    // First check for EPOLLOUT as we may need to fail the connect ChannelPromise before try
-                    // to read from the file descriptor.
-                    // See https://github.com/netty/netty/issues/3785
-                    //
-                    // It is possible for an EPOLLOUT or EPOLLERR to be generated when a connection is refused.
-                    // In either case epollOutReady() will do the correct thing (finish connecting, or fail
-                    // the connection).
-                    // See https://github.com/netty/netty/issues/3848
-                    if ((ev & (Native.EPOLLERR | Native.EPOLLOUT)) != 0) {
-                        // Force flush of data as the epoll is writable again
-                        unsafe.epollOutReady();
-                    }
 
                     // Check EPOLLIN before EPOLLRDHUP to ensure all data is read before shutting down the input.
                     // See https://github.com/netty/netty/issues/4317.

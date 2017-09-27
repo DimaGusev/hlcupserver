@@ -20,6 +20,8 @@ public class WorkerThread extends Thread {
     public final List<VisitResponse> VISIT_RESPONSE = new ArrayList<>(600);
     public final AttributeKey<ByteBuf> ATTRIBUTE_KEY = AttributeKey.valueOf("fragment");
     public final ByteBuf ENCODE_BUFFER = Unpooled.directBuffer(10000);
+    public final ByteBuf READ_BUFFER = Unpooled.directBuffer(5000);
+
 
     public WorkerThread(Runnable runnable) {
         super(runnable);

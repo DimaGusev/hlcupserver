@@ -171,7 +171,7 @@ public abstract class AbstractEpoll0Channel  extends AbstractChannel implements 
     }
 
     @Override
-    protected final void doBeginRead() throws Exception {
+    public final void doBeginRead() throws Exception {
         // Channel.read() or ChannelHandlerContext.read() was called
         final AbstractEpoll0Channel.AbstractEpollUnsafe unsafe = (AbstractEpoll0Channel.AbstractEpollUnsafe) unsafe();
         unsafe.readPending = true;
@@ -230,7 +230,7 @@ public abstract class AbstractEpoll0Channel  extends AbstractChannel implements 
     }
 
     @Override
-    protected void doRegister() throws Exception {
+    public void doRegister() throws Exception {
         // Just in case the previous EventLoop was shutdown abruptly, or an event is still pending on the old EventLoop
         // make sure the epollInReadyRunnablePending variable is reset so we will be able to execute the Runnable on the
         // new EventLoop.

@@ -51,7 +51,7 @@ public class JsonFormatters {
     }
 
 
-    public static byte[] format(User user) {
+    public static byte[] formatUser(User user) {
         StringBuilder stringBuilder = new StringBuilder(200);
         stringBuilder.append("{\"id\":").append(user.id);
         stringBuilder.append(",\"birth_date\":").append(user.birthDate);
@@ -63,7 +63,7 @@ public class JsonFormatters {
         return stringBuilder.toString().getBytes();
     }
 
-    public static byte[] format(Location location) {
+    public static byte[] formatLocation(Location location) {
         StringBuilder stringBuilder = new StringBuilder(130);
         stringBuilder.append("{\"id\":").append(location.id);
         stringBuilder.append(",\"country\":\"").append(location.country);
@@ -84,7 +84,7 @@ public class JsonFormatters {
         return stringBuilder.append("}").toString().getBytes();
     }
 
-    public static int format(Visit visit, ByteBuf buf, byte[] encodeBuffer) {
+    public static int formatVisit(Visit visit, ByteBuf buf, byte[] encodeBuffer) {
         int position = 0;
         System.arraycopy(VISIT_GET1, 0,encodeBuffer, position,VISIT_GET1.length);
         position+=VISIT_GET1.length;
@@ -124,7 +124,7 @@ public class JsonFormatters {
         }
         return null;
     }
-    public static int format(List<VisitResponse> responseList, int size, ByteBuf encodeBuffer, byte[] buf) {
+    public static int formatVisitsList(List<VisitResponse> responseList, int size, ByteBuf encodeBuffer, byte[] buf) {
         int position = 0;
         System.arraycopy(VISITS, 0, buf, 0, VISITS.length);
         position+=VISITS.length;

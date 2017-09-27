@@ -22,7 +22,7 @@ public class WebCache {
 
 
     public static void cacheUser(User user) {
-        byte[] response = JsonFormatters.format(user);
+        byte[] response = JsonFormatters.formatUser(user);
         ByteBuffer buffer = ByteBuffer.allocate(response.length);
         buffer.put(response);
         buffer.flip();
@@ -30,7 +30,7 @@ public class WebCache {
     }
 
     public static void cacheLocation(Location location) {
-        byte[] response = JsonFormatters.format(location);
+        byte[] response = JsonFormatters.formatLocation(location);
         ByteBuffer buffer = ByteBuffer.allocate(response.length);
         buffer.put(response);
         buffer.flip();
@@ -80,7 +80,7 @@ public class WebCache {
 
     public static int encodeVisit(Visit visit, ByteBuf encodeBuffer, byte[] buf) {
         encodeBuffer.writeBytes(RESPONSE_200_TEMPLATE);
-        int size = JsonFormatters.format(visit, encodeBuffer, buf);
+        int size = JsonFormatters.formatVisit(visit, encodeBuffer, buf);
         if (size > 99) {
             int d100 = size / 100;
             encodeBuffer.writerIndex(RESPONSE_200_TEMPLATE.length - 7);
