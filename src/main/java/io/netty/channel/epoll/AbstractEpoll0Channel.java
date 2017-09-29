@@ -298,6 +298,7 @@ public abstract class AbstractEpoll0Channel  extends AbstractChannel implements 
         if (byteBuf.hasMemoryAddress()) {
             localReadAmount = socket.readAddress(byteBuf.memoryAddress(), writerIndex, byteBuf.capacity());
         } else {
+            System.out.println("Pfffff");
             ByteBuffer buf = byteBuf.internalNioBuffer(writerIndex, byteBuf.writableBytes());
             localReadAmount = socket.read(buf, buf.position(), buf.limit());
         }

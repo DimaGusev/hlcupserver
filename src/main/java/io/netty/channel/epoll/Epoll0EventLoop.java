@@ -1,5 +1,6 @@
 package io.netty.channel.epoll;
 
+import com.dgusev.hl.server.stat.Statistics;
 import com.dgusev.hl.server.threads.Epoll0SingleThreadEventLoop;
 import io.netty.channel.EventLoop;
 import io.netty.channel.EventLoopGroup;
@@ -11,6 +12,7 @@ import io.netty.util.IntSupplier;
 import io.netty.util.collection.IntObjectHashMap;
 import io.netty.util.collection.IntObjectMap;
 import io.netty.util.concurrent.RejectedExecutionHandler;
+import io.netty.util.concurrent.SingleThreadEventExecutor;
 import io.netty.util.internal.ObjectUtil;
 import io.netty.util.internal.PlatformDependent;
 import io.netty.util.internal.logging.InternalLogger;
@@ -28,7 +30,7 @@ import static java.lang.Math.min;
 /**
  * Created by dgusev on 22.09.2017.
  */
-public class Epoll0EventLoop extends Epoll0SingleThreadEventLoop {
+public class Epoll0EventLoop extends SingleThreadEventLoop {
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(Epoll0EventLoop.class);
 
     static {
@@ -59,11 +61,7 @@ public class Epoll0EventLoop extends Epoll0SingleThreadEventLoop {
     };
     private volatile int wakenUp;
     private volatile int ioRatio = 50;
-    private boolean isAcceptor;
 
-    public void setAcceptor(boolean acceptor) {
-        isAcceptor = acceptor;
-    }
 
     Epoll0EventLoop(EventLoopGroup parent, Executor executor, int maxEvents,
                     SelectStrategy strategy, RejectedExecutionHandler rejectedExecutionHandler) {
@@ -216,57 +214,26 @@ public class Epoll0EventLoop extends Epoll0SingleThreadEventLoop {
 
     @Override
     protected void run() {
-        if (isAcceptor) {
-            ExecutorService executorService = Executors.newFixedThreadPool(1);
-            executorService.submit(()->{
-                while (!Thread.currentThread().isInterrupted()) {
-                    try {
-                        Runnable runnable = pollTask();
-                        if (runnable != null) {
-                            runnable.run();
-                        }
-                    } catch (Throwable ex) {
-                        ex.printStackTrace();
+        for (;;) {
+            try {
+                int count = epollWaitNow();
+                try {
+                    if (count > 0) {
+                        Statistics.eventsCount.addAndGet(count);
+                        processReady(events, count);
                     }
-                }
-            });
-            try {
-                Thread.sleep(5000);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-            executorService.shutdownNow();
-            try {
-                executorService.awaitTermination(Long.MAX_VALUE, TimeUnit.SECONDS);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-            System.out.println("Acceptor started");
-        }
-        for (; ; ) {
-            try {
-                int count = epollWaitNow();
-                if (count > 0) {
-                    processReady(events, count);
-                }
-            } catch (Throwable t) {
-                    handleLoopException(t);
-            }
-        }
-       /*
-        for (; ; ) {
-            try {
-                int count = epollWaitNow();
-                if (count > 0) {
-                    processReady(events, count);
-                }
-                if (hasTasks()) {
-                    runAllTasks();
+                } finally {
+                    // Ensure we always run tasks.
+                    if (hasTasks()) {
+                        Statistics.tasksCount.incrementAndGet();
+                        pollTask().run();
+                        //runAllTasks();
+                    }
                 }
             } catch (Throwable t) {
                 handleLoopException(t);
             }
-        }*/
+        }
     }
 
     private static void handleLoopException(Throwable t) {
@@ -304,9 +271,11 @@ public class Epoll0EventLoop extends Epoll0SingleThreadEventLoop {
         for (int i = 0; i < ready; i ++) {
             final int fd = events.fd(i);
             if (fd == eventFd.intValue()) {
+                Statistics.wuCount.incrementAndGet();
                 // consume wakeup event.
                 Native.eventFdRead(fd);
             } else if (fd == timerFd.intValue()) {
+                Statistics.tCount.incrementAndGet();
                 // consume wakeup event, necessary because the timer is added with ET mode.
                 Native.timerFdRead(fd);
             } else {
@@ -327,6 +296,7 @@ public class Epoll0EventLoop extends Epoll0SingleThreadEventLoop {
                     // try to read from the underlying file descriptor and so notify the user about the error.
                     if ((ev & (Native.EPOLLERR | Native.EPOLLIN)) != 0) {
                         // The Channel is still open and there is something to read. Do it now.
+                        Statistics.inEventCount.incrementAndGet();
                         unsafe.epollInReady();
                     }
 
@@ -334,6 +304,7 @@ public class Epoll0EventLoop extends Epoll0SingleThreadEventLoop {
                     // we may close the channel directly or try to read more data depending on the state of the
                     // Channel and als depending on the AbstractEpoll0Channel subtype.
                     if ((ev & Native.EPOLLRDHUP) != 0) {
+                        Statistics.rdHubCount.incrementAndGet();
                         unsafe.epollRdHupReady();
                     }
                 } else {
@@ -375,4 +346,5 @@ public class Epoll0EventLoop extends Epoll0SingleThreadEventLoop {
             events.free();
         }
     }
+
 }

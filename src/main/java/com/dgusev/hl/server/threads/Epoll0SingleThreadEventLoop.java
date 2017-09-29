@@ -58,12 +58,12 @@ public abstract class Epoll0SingleThreadEventLoop extends SingleThreadEventExecu
                 registerEventLoop(channel, this);
                 setRegister(channel);
                 executePipelineInit(channel.pipeline());
-                ((Epoll0EventLoop)this).add((AbstractEpoll0Channel) channel);
+                /*((Epoll0EventLoop)this).add((AbstractEpoll0Channel) channel);
                 if (!started) {
                     started = true;
                     this.execute(() -> {
                     });
-                }
+                }*/
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }

@@ -5,6 +5,7 @@ import com.dgusev.hl.server.model.User;
 import com.dgusev.hl.server.model.Visit;
 import com.dgusev.hl.server.model.file.*;
 import com.dgusev.hl.server.service.TravelService;
+import com.dgusev.hl.server.stat.Statistics;
 import com.dgusev.hl.server.threads.WorkerThreadFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.bootstrap.ServerBootstrap;
@@ -64,9 +65,30 @@ public class Starter implements CommandLineRunner {
         long serverTime = new Scanner(new File(optionsFile)).nextLong();
         travelService.init(serverTime);
 
+        new Thread(()-> {
+            try {
+                Thread.sleep(40000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            Statistics.clear();
+        });
+
+        new Thread(()-> {
+            while (true) {
+                try {
+                    Thread.sleep(20000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                System.out.println(Statistics.getStat());
+            }
+        });
+
+
         new Thread(() -> {
             ServerBootstrap serverBootstrap = new ServerBootstrap()
-                    .group(new Epoll0EventLoopGroup(true), new Epoll0EventLoopGroup(false,3, new WorkerThreadFactory()))
+                    .group(new Epoll0EventLoopGroup(), new Epoll0EventLoopGroup(3, new WorkerThreadFactory()))
                     .channel(Epoll0ServerSocketChannel.class)
                     .childHandler(new ChannelInitializer<SocketChannel>() {
                         @Override
@@ -168,7 +190,7 @@ public class Starter implements CommandLineRunner {
                 return null;
             });
         }
-        Thread.sleep(400000);
+        Thread.sleep(30000);
         executorService.shutdownNow();
         executorService.awaitTermination(Long.MAX_VALUE, TimeUnit.SECONDS);
         long t4 = System.currentTimeMillis();
