@@ -1,5 +1,6 @@
 package com.dgusev.hl.server.codecs;
 
+import com.dgusev.hl.server.stat.Statistics;
 import io.netty.buffer.ByteBuf;
 
 import java.io.IOException;
@@ -35,7 +36,10 @@ public class StringUTFCodec {
     public static int decode(ByteBuf buffer,byte[] buf, char[] out) throws IOException {
         int count = 0;
         int size = buffer.writerIndex();
+        long t1 = System.nanoTime();
         buffer.readBytes(buf, 0, size);
+        long t2 = System.nanoTime();
+        Statistics.readInHandlerTime.addAndGet(t2-t1);
         for (int i = 0; i < size; i++) {
             byte b = buf[i];
             if ((b & 0xff) < 0x7f) {

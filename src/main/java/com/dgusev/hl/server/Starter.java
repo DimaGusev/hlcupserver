@@ -67,28 +67,28 @@ public class Starter implements CommandLineRunner {
 
         new Thread(()-> {
             try {
-                Thread.sleep(40000);
+                Thread.sleep(550000);
+ //               Thread.sleep(50000);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
             Statistics.clear();
-        });
+        }).start();
 
         new Thread(()-> {
-            while (true) {
-                try {
-                    Thread.sleep(20000);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-                System.out.println(Statistics.getStat());
+            try {
+                Thread.sleep(1305000);
+ //               Thread.sleep(212000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
-        });
+            System.out.println(Statistics.getStat());
+        }).start();
 
 
         new Thread(() -> {
             ServerBootstrap serverBootstrap = new ServerBootstrap()
-                    .group(new Epoll0EventLoopGroup(), new Epoll0EventLoopGroup(3, new WorkerThreadFactory()))
+                    .group(new Epoll0EventLoopGroup(true), new Epoll0EventLoopGroup(false,1, new WorkerThreadFactory(false)))
                     .channel(Epoll0ServerSocketChannel.class)
                     .childHandler(new ChannelInitializer<SocketChannel>() {
                         @Override
@@ -99,7 +99,8 @@ public class Starter implements CommandLineRunner {
                     .option(ChannelOption.SO_BACKLOG, 500)
                     .option(ChannelOption.SO_REUSEADDR, true)
                     .childOption(ChannelOption.SO_LINGER, -1)
-                    .childOption(ChannelOption.TCP_NODELAY, true);
+                    .childOption(ChannelOption.TCP_NODELAY, true)
+                    .childOption(ChannelOption.SO_SNDBUF, 5000);
             try {
                 serverBootstrap.bind(new InetSocketAddress(serverPort)).sync();
             } catch (InterruptedException e) {
@@ -172,7 +173,7 @@ public class Starter implements CommandLineRunner {
         long t3 = System.currentTimeMillis();
         System.out.println("Start warm-up");
         ExecutorService executorService = Executors.newFixedThreadPool(4);
-        for (int i = 0; i< 4; i++) {
+        /*for (int i = 0; i< 4; i++) {
             executorService.submit(()->{
                 RestTemplate restTemplate = new RestTemplate();
                 while (!Thread.currentThread().isInterrupted()) {
@@ -189,8 +190,8 @@ public class Starter implements CommandLineRunner {
                 }
                 return null;
             });
-        }
-        Thread.sleep(30000);
+        }*/
+        Thread.sleep(0);
         executorService.shutdownNow();
         executorService.awaitTermination(Long.MAX_VALUE, TimeUnit.SECONDS);
         long t4 = System.currentTimeMillis();

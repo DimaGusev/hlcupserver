@@ -23,15 +23,15 @@ public class Epoll0EventLoopGroup extends MultithreadEventLoopGroup {
     /**
      * Create a new instance using the default number of threads and the default {@link ThreadFactory}.
      */
-    public Epoll0EventLoopGroup() {
-        this(0);
+    public Epoll0EventLoopGroup(boolean isAcceptor) {
+        this(isAcceptor,0);
     }
 
     /**
      * Create a new instance using the specified number of threads and the default {@link ThreadFactory}.
      */
-    public Epoll0EventLoopGroup(int nThreads) {
-        this( nThreads, (ThreadFactory) null);
+    public Epoll0EventLoopGroup(boolean isAcceptor,int nThreads) {
+        this(isAcceptor, nThreads, (ThreadFactory) null);
     }
 
 
@@ -39,8 +39,8 @@ public class Epoll0EventLoopGroup extends MultithreadEventLoopGroup {
      * Create a new instance using the specified number of threads and the given {@link ThreadFactory}.
      */
     @SuppressWarnings("deprecation")
-    public Epoll0EventLoopGroup(int nThreads, ThreadFactory threadFactory) {
-        this( nThreads, threadFactory, 0);
+    public Epoll0EventLoopGroup(boolean isAcceptor, int nThreads, ThreadFactory threadFactory) {
+        this(isAcceptor, nThreads, threadFactory, 0);
     }
 
     /**
@@ -50,8 +50,8 @@ public class Epoll0EventLoopGroup extends MultithreadEventLoopGroup {
      * @deprecated Use {@link #Epoll0EventLoopGroup(int)} or {@link #Epoll0EventLoopGroup(int, ThreadFactory)}
      */
     @Deprecated
-    public Epoll0EventLoopGroup(int nThreads, ThreadFactory threadFactory, int maxEventsAtOnce) {
-        this( nThreads, threadFactory, maxEventsAtOnce, DefaultSelectStrategyFactory.INSTANCE);
+    public Epoll0EventLoopGroup(boolean isAcceptor, int nThreads, ThreadFactory threadFactory, int maxEventsAtOnce) {
+        this(isAcceptor, nThreads, threadFactory, maxEventsAtOnce, DefaultSelectStrategyFactory.INSTANCE);
     }
 
     /**
@@ -62,9 +62,12 @@ public class Epoll0EventLoopGroup extends MultithreadEventLoopGroup {
      * {@link #Epoll0EventLoopGroup(int, SelectStrategyFactory)}
      */
     @Deprecated
-    public Epoll0EventLoopGroup(int nThreads, ThreadFactory threadFactory, int maxEventsAtOnce,
+    public Epoll0EventLoopGroup(boolean isAcceptor, int nThreads, ThreadFactory threadFactory, int maxEventsAtOnce,
                                 SelectStrategyFactory selectStrategyFactory) {
         super(nThreads, threadFactory, maxEventsAtOnce, selectStrategyFactory, RejectedExecutionHandlers.reject());
+        for (EventExecutor eventExecutor: this) {
+            ((Epoll0EventLoop)eventExecutor).setAcceptor(isAcceptor);
+        }
     }
 
     /**

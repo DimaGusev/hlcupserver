@@ -30,7 +30,7 @@ public abstract class AbstractEpoll0Channel  extends AbstractChannel implements 
             new ClosedChannelException(), AbstractEpoll0Channel.class, "doClose()");
     private static final ChannelMetadata METADATA = new ChannelMetadata(false);
     private final int readFlag;
-    final LinuxSocket socket;
+    final public LinuxSocket socket;
     /**
      * The future of the current connection attempt.  If not null, subsequent
      * connection attempts will fail.
@@ -309,13 +309,19 @@ public abstract class AbstractEpoll0Channel  extends AbstractChannel implements 
     }
 
     public final int doWriteBytes(ByteBuf buf, int writeSpinCount) throws Exception {
-        int readableBytes = buf.readableBytes();
+        return socket.writeAddress(buf.memoryAddress(), 0, buf.readableBytes());
+        /*int readableBytes = buf.readableBytes();
         int writtenBytes = 0;
         if (buf.hasMemoryAddress()) {
             long memoryAddress = buf.memoryAddress();
             int readerIndex = buf.readerIndex();
+            if (readerIndex != 0) {
+                System.out.println("Pff reader index");
+            }
             int writerIndex = buf.writerIndex();
+            int k = 0;
             for (int i = writeSpinCount; i > 0; --i) {
+                k++;
                 int localFlushedAmount = socket.writeAddress(memoryAddress, readerIndex, writerIndex);
                 if (localFlushedAmount > 0) {
                     writtenBytes += localFlushedAmount;
@@ -327,7 +333,11 @@ public abstract class AbstractEpoll0Channel  extends AbstractChannel implements 
                     break;
                 }
             }
+            if (k >1) {
+                System.out.println("Pfff k");
+            }
         } else {
+            System.out.println("Pfffff write");
             ByteBuffer nioBuf;
             if (buf.nioBufferCount() == 1) {
                 nioBuf = buf.internalNioBuffer(buf.readerIndex(), buf.readableBytes());
@@ -351,9 +361,10 @@ public abstract class AbstractEpoll0Channel  extends AbstractChannel implements 
         }
         if (writtenBytes < readableBytes) {
             // Returned EAGAIN need to set EPOLLOUT
+            System.out.println("Pfffff EPOLLOUT");
             setFlag(Native.EPOLLOUT);
         }
-        return writtenBytes;
+        return writtenBytes;*/
     }
 
     protected abstract class AbstractEpollUnsafe extends AbstractUnsafe {

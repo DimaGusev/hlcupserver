@@ -1,5 +1,6 @@
 package com.dgusev.hl.server.threads;
 
+import com.dgusev.hl.server.stat.Statistics;
 import io.netty.channel.*;
 import io.netty.channel.epoll.AbstractEpoll0Channel;
 import io.netty.channel.epoll.Epoll0EventLoop;
@@ -52,21 +53,26 @@ public abstract class Epoll0SingleThreadEventLoop extends SingleThreadEventExecu
     @Override
     public ChannelFuture register(Channel channel) {
         if (channel instanceof Epoll0ServerSocketChannel) {
+            Statistics.registerServerCount.incrementAndGet();
             return register(new DefaultChannelPromise(channel, this));
         } else {
+            long t1 = System.nanoTime();
             try {
+                Statistics.registerClientCount.incrementAndGet();
                 registerEventLoop(channel, this);
                 setRegister(channel);
                 executePipelineInit(channel.pipeline());
-                /*((Epoll0EventLoop)this).add((AbstractEpoll0Channel) channel);
+                ((Epoll0EventLoop)this).add((AbstractEpoll0Channel) channel);
                 if (!started) {
                     started = true;
                     this.execute(() -> {
                     });
-                }*/
+                }
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
+            long t2 = System.nanoTime();
+            Statistics.registrationTime.addAndGet(t2-t1);
             return new DefaultChannelPromise(channel, this);
         }
     }

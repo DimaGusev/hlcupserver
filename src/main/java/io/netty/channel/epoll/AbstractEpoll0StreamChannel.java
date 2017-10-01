@@ -727,94 +727,61 @@ abstract class AbstractEpoll0StreamChannel  extends AbstractEpoll0Channel implem
 
         @Override
         void epollInReady() {
-            final ChannelConfig config = config();
-            if (shouldBreakEpollInReady(config)) {
-                Statistics.brakeEpollCount.incrementAndGet();
-                clearEpollIn0();
-                return;
-            }
-            final EpollRecvByteAllocatorHandle allocHandle = recvBufAllocHandle();
-            allocHandle.edgeTriggered(isFlagSet(Native.EPOLLET));
+            long t3 = System.nanoTime();
+            //final ChannelConfig config = config();
+            //final EpollRecvByteAllocatorHandle allocHandle = recvBufAllocHandle();
+            //allocHandle.edgeTriggered(isFlagSet(Native.EPOLLET));
 
             final ChannelPipeline pipeline = pipeline();
-            allocHandle.reset(config);
-            epollInBefore();
+            //allocHandle.reset(config);
+            //epollInBefore();
 
             ByteBuf byteBuf = null;
             boolean close = false;
             boolean condition = false;
             try {
-                do {
-                    if (spliceQueue != null) {
-                        Statistics.spliceQueueCount.incrementAndGet();
-                        AbstractEpoll0StreamChannel.SpliceInTask spliceTask = spliceQueue.peek();
-                        if (spliceTask != null) {
-                            if (spliceTask.spliceIn(allocHandle)) {
-                                // We need to check if it is still active as if not we removed all SpliceTasks in
-                                // doClose(...)
-                                if (isActive()) {
-                                    spliceQueue.remove();
-                                }
-                                continue;
-                            } else {
-                                break;
-                            }
-                        }
-                    }
-
                     // we use a direct buffer here as the native implementations only be able
                     // to handle direct buffers.
                     //byteBuf = allocHandle.allocate(allocator);
                     byteBuf = ((WorkerThread)Thread.currentThread()).READ_BUFFER;
                     byteBuf.clear();
-                    allocHandle.lastBytesRead(doReadBytes(byteBuf));
-                    if (allocHandle.lastBytesRead() <= 0) {
+                    //allocHandle.lastBytesRead(doReadBytes(byteBuf));
+                int readBytes = doReadBytes(byteBuf);
+                long t2 = System.nanoTime();
+                Statistics.readTime.addAndGet(t2-t3);
+                    if (readBytes <= 0) {
                         Statistics.nothingReadCount.incrementAndGet();
                         // nothing was read, release the buffer.
                         //byteBuf.release();
                         byteBuf = null;
-                        close = allocHandle.lastBytesRead() < 0;
-                        break;
+                        close = readBytes < 0;
+                    } else {
+                        //allocHandle.incMessagesRead(1);
+                        readPending = false;
+                        ChannelHandlerContext context = pipeline.firstContext();
+                        //ReferenceCountUtil.touch(byteBuf, context);
+                        ((ChannelInboundHandler) (pipeline.first())).channelRead(context, byteBuf);
+                        //pipeline.fireChannelRead(byteBuf);
+                        byteBuf = null;
                     }
-                    allocHandle.incMessagesRead(1);
-                    readPending = false;
-                    ChannelHandlerContext context = pipeline.firstContext();
-                    ReferenceCountUtil.touch(byteBuf, context);
-                    ((ChannelInboundHandler)(pipeline.first())).channelRead(context, byteBuf);
-                    //pipeline.fireChannelRead(byteBuf);
-                    byteBuf = null;
-                    if (shouldBreakEpollInReady(config)) {
-                        Statistics.brakeEpoll1Count.incrementAndGet();
-                        // We need to do this for two reasons:
-                        //
-                        // - If the input was shutdown in between (which may be the case when the user did it in the
-                        //   fireChannelRead(...) method we should not try to read again to not produce any
-                        //   miss-leading exceptions.
-                        //
-                        // - If the user closes the channel we need to ensure we not try to read from it again as
-                        //   the filedescriptor may be re-used already by the OS if the system is handling a lot of
-                        //   concurrent connections and so needs a lot of filedescriptors. If not do this we risk
-                        //   reading data from a filedescriptor that belongs to another socket then the socket that
-                        //   was "wrapped" by this Channel implementation.
-                        break;
-                    }
-                    condition = allocHandle.continueReading();
-                    if (condition) {
-                        Statistics.continueReadingCount.incrementAndGet();
-                    }
-                } while (condition);
 
                 //allocHandle.readComplete();
                 //pipeline.fireChannelReadComplete();
 
+
                 if (close) {
+                    long t5 = System.nanoTime();
                     Statistics.closeCount.incrementAndGet();
                     shutdownInput(false);
+                    long t6 = System.nanoTime();
+                    Statistics.closeTime.addAndGet(t6-t5);
                 }
+                long t4 = System.nanoTime();
+                Statistics.epollInReadyClientTime.addAndGet(t4-t3);
             } catch (Throwable t) {
-                handleReadException(pipeline, byteBuf, t, close, allocHandle);
+                //handleReadException(pipeline, byteBuf, t, close, allocHandle);
             } finally {
-                epollInFinally(config);
+                //epollInFinally(config);
             }
         }
     }

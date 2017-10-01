@@ -9,8 +9,23 @@ import java.util.concurrent.ThreadFactory;
  */
 public class WorkerThreadFactory implements ThreadFactory {
 
+    private boolean affinity;
+
+
+    public WorkerThreadFactory(boolean affinity) {
+        this.affinity = affinity;
+    }
+
     @Override
     public Thread newThread(Runnable r) {
-        return new WorkerThread(r);
+        if (affinity) {
+            return new WorkerThread(() -> {
+                try (AffinityLock affinityLock = AffinityLock.acquireCore()) {
+                    r.run();
+                }
+            });
+        } else {
+            return new WorkerThread(r);
+        }
     }
 }
