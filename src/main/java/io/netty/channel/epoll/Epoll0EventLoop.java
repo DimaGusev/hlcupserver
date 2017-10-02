@@ -141,7 +141,6 @@ public class Epoll0EventLoop extends Epoll0SingleThreadEventLoop {
      */
     public void add(AbstractEpoll0Channel ch) throws IOException {
         //assert inEventLoop();
-        Statistics.addChannelCount.incrementAndGet();
         int fd = ch.socket.intValue();
         channels.put(fd, ch);
         Native.epollCtlAdd(epollFd.intValue(), fd, ch.flags);
@@ -160,7 +159,6 @@ public class Epoll0EventLoop extends Epoll0SingleThreadEventLoop {
      */
     void remove(AbstractEpoll0Channel ch) throws IOException {
         assert inEventLoop();
-        Statistics.removeChannelCount.incrementAndGet();
         if (ch.isOpen()) {
             int fd = ch.socket.intValue();
             if (channels.remove(fd) != null) {
@@ -168,8 +166,6 @@ public class Epoll0EventLoop extends Epoll0SingleThreadEventLoop {
                 // removed once the file-descriptor is closed.
                 Native.epollCtlDel(epollFd.intValue(), ch.fd().intValue());
             }
-        } else {
-            Statistics.removeChannelCount1.incrementAndGet();
         }
     }
 
@@ -226,7 +222,6 @@ public class Epoll0EventLoop extends Epoll0SingleThreadEventLoop {
                     try {
                         Runnable runnable = pollTask();
                         if (runnable != null) {
-                            Statistics.tasksCount.incrementAndGet();
                             runnable.run();
                         }
                     } catch (Throwable ex) {
@@ -246,30 +241,26 @@ public class Epoll0EventLoop extends Epoll0SingleThreadEventLoop {
                 e.printStackTrace();
             }
             System.out.println("Acceptor started");
-        }
-        for (; ; ) {
-            try {
-                int count = Native.epollWait(epollFd, events, timerFd, 0, 0);
-                if (count > 0) {
-                    Statistics.eventsCount.addAndGet(count);
-                    if (count > 20) {
-                        Statistics.queueMore20.incrementAndGet();
-                    } else if (count > 15) {
-                        Statistics.queueMore15.incrementAndGet();
-                    } else if (count > 10) {
-                        Statistics.queueMore10.incrementAndGet();
-                    } else if (count > 5) {
-                        Statistics.queueMore5.incrementAndGet();
+            for (; ; ) {
+                try {
+                    int count = Native.epollWait(epollFd, events, timerFd, 5000, 0);
+                    if (count > 0) {
+                        processReady(events, count);
                     }
-                    Statistics.wakeUpCount.incrementAndGet();
-                    Statistics.updateMaxQueueSize(count);
-                    long t1 = System.nanoTime();
-                    processReady(events, count);
-                    long t2 = System.nanoTime();
-                    Statistics.totalTime.addAndGet(t2-t1);
+                } catch (Throwable t) {
+                    handleLoopException(t);
                 }
-            } catch (Throwable t) {
-                handleLoopException(t);
+            }
+        } else {
+            for (; ; ) {
+                try {
+                    int count = Native.epollWait(epollFd, events, timerFd, 0, 0);
+                    if (count > 0) {
+                        processReady(events, count);
+                    }
+                } catch (Throwable t) {
+                    handleLoopException(t);
+                }
             }
         }
     }
@@ -307,10 +298,8 @@ public class Epoll0EventLoop extends Epoll0SingleThreadEventLoop {
 
     private void processReady(EpollEventArray events, int ready) {
         for (int i = 0; i < ready; i ++) {
-            long t1 = System.nanoTime();
             final int fd = events.fd(i);
             if (fd == eventFd.intValue()) {
-                Statistics.wuCount.incrementAndGet();
                 // consume wakeup event.
                 Native.eventFdRead(fd);
             } else {
@@ -331,18 +320,13 @@ public class Epoll0EventLoop extends Epoll0SingleThreadEventLoop {
                     // try to read from the underlying file descriptor and so notify the user about the error.
                     if ((ev & (Native.EPOLLERR | Native.EPOLLIN)) != 0) {
                         // The Channel is still open and there is something to read. Do it now.
-                        Statistics.inEventCount.incrementAndGet();
-                        long t3 = System.nanoTime();
                         unsafe.epollInReady();
-                        long t4 = System.nanoTime();
-                        Statistics.processReadTime.addAndGet(t4-t3);
                     }
 
                     // Check if EPOLLRDHUP was set, this will notify us for connection-reset in which case
                     // we may close the channel directly or try to read more data depending on the state of the
                     // Channel and als depending on the AbstractEpoll0Channel subtype.
                     if ((ev & Native.EPOLLRDHUP) != 0) {
-                        Statistics.rdHubCount.incrementAndGet();
                         unsafe.epollRdHupReady();
                     }
                 } else {
@@ -357,9 +341,6 @@ public class Epoll0EventLoop extends Epoll0SingleThreadEventLoop {
                     }
                 }
             }
-            long t2 = System.nanoTime();
-            Statistics.updateMaxTime(t2-t1);
-            Statistics.processTime.addAndGet(t2-t1);
         }
     }
 

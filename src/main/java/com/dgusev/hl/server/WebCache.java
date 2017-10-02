@@ -44,7 +44,6 @@ public class WebCache {
     //}
 
     public static int encodeUser(Integer id, ByteBuf encodeBuffer) {
-        long t1 = System.nanoTime();
         encodeBuffer.writeBytes(RESPONSE_200_TEMPLATE);
         ByteBuffer userArray = users[id];
         if (userArray.limit() > 99) {
@@ -59,13 +58,10 @@ public class WebCache {
         encodeBuffer.writeByte((byte)(48  + d0));
         encodeBuffer.writerIndex(RESPONSE_200_TEMPLATE.length);
         encodeBuffer.writeBytes(userArray.array());
-        long t2 = System.nanoTime();
-        Statistics.prepareResponseTime.addAndGet(t2-t1);
         return RESPONSE_200_TEMPLATE.length + userArray.limit();
     }
 
     public static int encodeLocation(Integer id, ByteBuf encodeBuffer) {
-        long t1 = System.nanoTime();
         encodeBuffer.writeBytes(RESPONSE_200_TEMPLATE);
         ByteBuffer locationArray = locations[id];
         if (locationArray.limit() > 99) {
@@ -80,13 +76,10 @@ public class WebCache {
         encodeBuffer.writeByte((byte)(48  + d0));
         encodeBuffer.writerIndex(RESPONSE_200_TEMPLATE.length);
         encodeBuffer.writeBytes(locationArray.array());
-        long t2 = System.nanoTime();
-        Statistics.prepareResponseTime.addAndGet(t2-t1);
         return RESPONSE_200_TEMPLATE.length + locationArray.limit();
     }
 
     public static int encodeVisit(Visit visit, ByteBuf encodeBuffer, byte[] buf) {
-        long t1 = System.nanoTime();
         encodeBuffer.writeBytes(RESPONSE_200_TEMPLATE);
         int size = JsonFormatters.formatVisit(visit, encodeBuffer, buf);
         if (size > 99) {
@@ -100,8 +93,6 @@ public class WebCache {
         int d0 = size % 10;
         encodeBuffer.writeByte((byte)(48  + d0));
         encodeBuffer.writerIndex(RESPONSE_200_TEMPLATE.length + size);
-        long t2 = System.nanoTime();
-        Statistics.prepareResponseTime.addAndGet(t2-t1);
         return RESPONSE_200_TEMPLATE.length + size;
     }
 

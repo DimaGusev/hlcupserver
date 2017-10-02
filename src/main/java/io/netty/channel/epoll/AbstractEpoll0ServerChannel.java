@@ -67,7 +67,6 @@ abstract class AbstractEpoll0ServerChannel  extends AbstractEpoll0Channel implem
 
         @Override
         void epollInReady() {
-            long t1 = System.nanoTime();
             assert eventLoop().inEventLoop();
             final ChannelConfig config = config();
             if (shouldBreakEpollInReady(config)) {
@@ -111,8 +110,6 @@ abstract class AbstractEpoll0ServerChannel  extends AbstractEpoll0Channel implem
                 }
             } finally {
                 epollInFinally(config);
-                long t2 = System.nanoTime();
-                Statistics.epollInReadyServerTime.addAndGet(t2-t1);
             }
         }
     }

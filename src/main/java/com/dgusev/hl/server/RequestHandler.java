@@ -52,12 +52,7 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-        long t1 = System.nanoTime();
-        ActionType actionType = null;
-        long writeTime = 0;
-        long preHandleTime = 0;
         try {
-            Statistics.handlerCallCount.incrementAndGet();
             WorkerThread workerThread = (WorkerThread) Thread.currentThread();
             char[] BUFFER = workerThread.BUFFER;
             byte[] ARRAY_INPUT_CONTAINER = workerThread.ARRAY_INPUT_CONTAINER;
@@ -81,16 +76,11 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
                 }
                 buf.readerIndex(0);
                 byteBuf.writeBytes(buf);
-                //release(buf);
-                Statistics.fragmentationCount.incrementAndGet();
                 return;
             } else if (fragmentedMessage != null) {
                 ctx.channel().attr(attributeKey).set(null);
                 release(fragmentedMessage);
             }
-            long t6 = System.nanoTime();
-            Statistics.preHandleTime.addAndGet(t6-t1);
-            preHandleTime = t6-t1;
             int pointer = 0;
             if (BUFFER[0] == 'G') {
                 pointer += 4;
@@ -101,7 +91,6 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
                 String query = new String(BUFFER, 4, pointer - 4);
                 if (query.startsWith("/users/")) {
                     if (!query.contains("/visits")) {
-                        actionType = ActionType.USER_GET;
                         String idString = new String(BUFFER, start + 7, pointer - start - 7);
                         try {
                             Integer id = Integer.valueOf(idString);
@@ -111,12 +100,11 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
                             travelService.validateUser(id);
                             ENCODE_BUFFER.clear();
                             WebCache.encodeUser(id, ENCODE_BUFFER);
-                            writeTime = write(ctx, ENCODE_BUFFER);
+                            write(ctx, ENCODE_BUFFER);
                         } catch (EntityNotFound | NumberFormatException ex) {
-                            writeTime = write(ctx,RESPONSE_404.retain().duplicate());
+                            write(ctx, RESPONSE_404.retain().duplicate());
                         }
                     } else {
-                        actionType = ActionType.USER_VISITS;
                         try {
                             Integer id = null;
                             try {
@@ -149,13 +137,12 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
                             }
                             travelService.validateUser(id);
                             if (toDate != null && fromDate != null && toDate < fromDate) {
-                                writeTime = write(ctx,EMPTY_VISITS.retain().duplicate());
+                                write(ctx, EMPTY_VISITS.retain().duplicate());
                             } else {
                                 int offset = travelService.searchUserVisits(id, fromDate, toDate, country, toDistance, VISIT_RESPONSE);
                                 if (offset == 0) {
-                                    writeTime = write(ctx,EMPTY_VISITS.retain().duplicate());
+                                    write(ctx, EMPTY_VISITS.retain().duplicate());
                                 } else {
-                                    long v1 = System.nanoTime();
                                     ENCODE_BUFFER.clear();
                                     ENCODE_BUFFER.writeBytes(VISIT_HEADER);
                                     ENCODE_BUFFER.writeBytes(DOUBLE_NL);
@@ -166,22 +153,19 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
                                     ENCODE_BUFFER.writerIndex(VISIT_HEADER.length - 4);
                                     ENCODE_BUFFER.writeBytes(bCount);
                                     ENCODE_BUFFER.writerIndex(position);
-                                    long v2 = System.nanoTime();
-                                    Statistics.prepareResponseTime.addAndGet(v2-v1);
-                                    writeTime = write(ctx,ENCODE_BUFFER);
+                                    write(ctx, ENCODE_BUFFER);
                                 }
                             }
                         } catch (EntityNotFound ex) {
-                            writeTime = write(ctx,RESPONSE_404.retain().duplicate());
+                            write(ctx, RESPONSE_404.retain().duplicate());
                             ;
 
                         } catch (NumberFormatException | BadRequest br) {
-                            writeTime = write(ctx,RESPONSE_400.retain().duplicate());
+                            write(ctx, RESPONSE_400.retain().duplicate());
                         }
                     }
                 } else if (query.startsWith("/locations/")) {
                     if (!query.contains("/avg")) {
-                        actionType = ActionType.LOCATION_GET;
                         String idString = new String(BUFFER, start + 11, pointer - start - 11);
                         try {
                             Integer id = Integer.valueOf(idString);
@@ -192,14 +176,13 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
                             ENCODE_BUFFER.clear();
                             WebCache.encodeLocation(id, ENCODE_BUFFER);
 
-                            writeTime = write(ctx,ENCODE_BUFFER);
+                            write(ctx, ENCODE_BUFFER);
                         } catch (EntityNotFound | NumberFormatException ex) {
-                            writeTime = write(ctx,RESPONSE_404.retain().duplicate());
+                            write(ctx, RESPONSE_404.retain().duplicate());
                             ;
 
                         }
                     } else {
-                        actionType = ActionType.LOCATION_AVG;
                         try {
                             Integer id = null;
                             try {
@@ -235,9 +218,9 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
                             }
                             travelService.validateLocation(id);
                             if (fromAge != null && toAge != null && fromAge > toAge) {
-                                writeTime = write(ctx,ZERO_MARK.retain().duplicate());
+                                write(ctx, ZERO_MARK.retain().duplicate());
                             } else if (toDate != null && fromDate != null && toDate < fromDate) {
-                                writeTime = write(ctx,ZERO_MARK.retain().duplicate());
+                                write(ctx, ZERO_MARK.retain().duplicate());
                             } else {
 
                                 Double mark = travelService.calculateLocationMark(id,
@@ -249,31 +232,27 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
                                 );
 
                                 if (mark == 0.0) {
-                                    writeTime = write(ctx,ZERO_MARK.retain().duplicate());
+                                    write(ctx, ZERO_MARK.retain().duplicate());
                                 } else {
                                     StringBuilder stringBuilder = new StringBuilder("{\"avg\":}");
                                     byte[] binaryResponse = stringBuilder.insert(7, format(mark, 5)).toString().getBytes();
                                     byte[] header = ("HTTP/1.1 200 OK\r\nConnection: keep-alive\r\nContent-Type: application/json;charset=utf-8\r\nContent-Length: " + binaryResponse.length + "\r\n\r\n").getBytes();
                                     byte[] result = new byte[binaryResponse.length + header.length];
-                                    long avg1 = System.nanoTime();
                                     System.arraycopy(header, 0, result, 0, header.length);
                                     System.arraycopy(binaryResponse, 0, result, header.length, binaryResponse.length);
                                     ENCODE_BUFFER.clear();
                                     ENCODE_BUFFER.writeBytes(result);
-                                    long avg2 = System.nanoTime();
-                                    Statistics.prepareResponseTime.addAndGet(avg2-avg1);
-                                    writeTime = write(ctx,ENCODE_BUFFER);
+                                    write(ctx, ENCODE_BUFFER);
                                 }
                             }
                         } catch (EntityNotFound ex) {
-                            writeTime = write(ctx,RESPONSE_404.retain().duplicate());
+                            write(ctx, RESPONSE_404.retain().duplicate());
 
                         } catch (NumberFormatException | BadRequest br) {
-                            writeTime = write(ctx,RESPONSE_400.retain().duplicate());
+                            write(ctx, RESPONSE_400.retain().duplicate());
                         }
                     }
                 } else if (query.startsWith("/visits/")) {
-                    actionType = ActionType.VISIT_GET;
                     String idString = new String(BUFFER, start + 8, pointer - start - 8);
                     try {
                         Integer id = Integer.valueOf(idString);
@@ -282,9 +261,9 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
                         }
                         ENCODE_BUFFER.clear();
                         WebCache.encodeVisit(travelService.getVisit(id), ENCODE_BUFFER, ARRAY_OUTPUT_CONTAINER);
-                        writeTime = write(ctx,ENCODE_BUFFER);
+                        write(ctx, ENCODE_BUFFER);
                     } catch (EntityNotFound | NumberFormatException ex) {
-                        writeTime = write(ctx,RESPONSE_404.retain().duplicate());
+                        write(ctx, RESPONSE_404.retain().duplicate());
 
                     }
                 }
@@ -296,7 +275,6 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
                 }
                 String query = new String(BUFFER, 5, pointer - 5);
                 if (query.startsWith("/users")) {
-                    actionType = ActionType.USER_POST;
                     if (query.startsWith("/users/new")) {
                         while (!(BUFFER[pointer] == '\n' && BUFFER[pointer - 1] == '\r' && BUFFER[pointer - 2] == '\n' && BUFFER[pointer - 3] == '\r')) {
                             pointer++;
@@ -304,9 +282,9 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
                         try {
                             User user = UserParser.parseUser(BUFFER, pointer + 1, count - pointer - 1);
                             travelService.createUser(user);
-                            writeTime = write(ctx,RESPONSE_200.retain().duplicate());
+                            write(ctx, RESPONSE_200.retain().duplicate());
                         } catch (BadRequest br) {
-                            writeTime = write(ctx,RESPONSE_400.retain().duplicate());
+                            write(ctx, RESPONSE_400.retain().duplicate());
                         }
                     } else {
                         String idString = new String(BUFFER, start + 7, pointer - start - 7);
@@ -322,15 +300,14 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
                             User user = UserParser.parseUser(BUFFER, pointer + 1, count - pointer - 1);
                             user.id = id;
                             travelService.updateUser(user);
-                            writeTime = write(ctx,RESPONSE_200.retain().duplicate());
+                            write(ctx, RESPONSE_200.retain().duplicate());
                         } catch (EntityNotFound | NumberFormatException ex) {
-                            writeTime = write(ctx,RESPONSE_404.retain().duplicate());
+                            write(ctx, RESPONSE_404.retain().duplicate());
                         } catch (BadRequest br) {
-                            writeTime = write(ctx,RESPONSE_400.retain().duplicate());
+                            write(ctx, RESPONSE_400.retain().duplicate());
                         }
                     }
                 } else if (query.startsWith("/locations")) {
-                    actionType = ActionType.LOCATION_POST;
                     if (query.startsWith("/locations/new")) {
                         while (!(BUFFER[pointer] == '\n' && BUFFER[pointer - 1] == '\r' && BUFFER[pointer - 2] == '\n' && BUFFER[pointer - 3] == '\r')) {
                             pointer++;
@@ -338,9 +315,9 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
                         try {
                             Location location = LocationParser.parseLocation(BUFFER, pointer + 1, count - pointer - 1);
                             travelService.createLocation(location);
-                            writeTime = write(ctx,RESPONSE_200.retain().duplicate());
+                            write(ctx, RESPONSE_200.retain().duplicate());
                         } catch (BadRequest br) {
-                            writeTime = write(ctx,RESPONSE_400.retain().duplicate());
+                            write(ctx, RESPONSE_400.retain().duplicate());
                         }
                     } else {
                         String idString = new String(BUFFER, start + 11, pointer - start - 11);
@@ -356,15 +333,14 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
                             Location location = LocationParser.parseLocation(BUFFER, pointer + 1, count - pointer - 1);
                             location.id = id;
                             travelService.updateLocation(location);
-                            writeTime = write(ctx,RESPONSE_200.retain().duplicate());
+                            write(ctx, RESPONSE_200.retain().duplicate());
                         } catch (EntityNotFound | NumberFormatException ex) {
-                            writeTime = write(ctx,RESPONSE_404.retain().duplicate());
+                            write(ctx, RESPONSE_404.retain().duplicate());
                         } catch (BadRequest br) {
-                            writeTime = write(ctx,RESPONSE_400.retain().duplicate());
+                            write(ctx, RESPONSE_400.retain().duplicate());
                         }
                     }
                 } else if (query.startsWith("/visits")) {
-                    actionType = ActionType.VISIT_POST;
                     if (query.startsWith("/visits/new")) {
                         while (!(BUFFER[pointer] == '\n' && BUFFER[pointer - 1] == '\r' && BUFFER[pointer - 2] == '\n' && BUFFER[pointer - 3] == '\r')) {
                             pointer++;
@@ -372,9 +348,9 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
                         try {
                             Visit visit = VisitParser.parseVisit(BUFFER, pointer + 1, count - pointer - 1);
                             travelService.createVisit(visit);
-                            writeTime = write(ctx,RESPONSE_200.retain().duplicate());
+                            write(ctx, RESPONSE_200.retain().duplicate());
                         } catch (BadRequest br) {
-                            writeTime = write(ctx,RESPONSE_400.retain().duplicate());
+                            write(ctx, RESPONSE_400.retain().duplicate());
                         }
                     } else {
                         String idString = new String(BUFFER, start + 8, pointer - start - 8);
@@ -390,11 +366,11 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
                             Visit visit = VisitParser.parseVisit(BUFFER, pointer + 1, count - pointer - 1);
                             visit.id = id;
                             travelService.updateVisit(visit);
-                            writeTime = write(ctx,RESPONSE_200.retain().duplicate());
+                            write(ctx, RESPONSE_200.retain().duplicate());
                         } catch (EntityNotFound | NumberFormatException ex) {
-                            writeTime = write(ctx,RESPONSE_404.retain().duplicate());
+                            write(ctx, RESPONSE_404.retain().duplicate());
                         } catch (BadRequest br) {
-                            writeTime = write(ctx,RESPONSE_400.retain().duplicate());
+                            write(ctx, RESPONSE_400.retain().duplicate());
                         }
                     }
                 }
@@ -409,35 +385,17 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
         } catch (Throwable e) {
             e.printStackTrace();
             ctx.close();
-        } finally {
-            long t2 = System.nanoTime();
-            Statistics.totalHandlerTime.addAndGet(t2-t1);
-            if (actionType != null) {
-                Statistics.log(actionType, t2-t1);
-            }
-            long clearTime = t2-t1-writeTime -preHandleTime;
-            Statistics.updateMaxClearTime(clearTime);
-            if (actionType != null) {
-                Statistics.logClear(actionType, clearTime);
-            }
         }
     }
 
-    private long write(ChannelHandlerContext ctx, ByteBuf byteBuf) throws Exception {
-        long t1 = System.nanoTime();
-        int size = ((AbstractEpoll0Channel)ctx.channel()).doWriteBytes(byteBuf,16);
-        long t2 = System.nanoTime();
-        Statistics.updateMaxWriteCount(size);
-        Statistics.ioWriteTime.addAndGet(t2-t1);
-        Statistics.updateIoMaxTime(t2-t1);
-        return t2-t1;
+    private void write(ChannelHandlerContext ctx, ByteBuf byteBuf) throws Exception {
+        ((AbstractEpoll0Channel) ctx.channel()).doWriteBytes(byteBuf, 16);
     }
 
     private String decode(String parameter) {
         try {
             return URLDecoder.decode(parameter, "UTF-8");
         } catch (UnsupportedEncodingException e) {
-
         }
         return null;
     }
@@ -457,7 +415,7 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
             val = -val;
         }
         int exp = POW10[precision];
-        long lval = (long)(val * exp + 0.5);
+        long lval = (long) (val * exp + 0.5);
         sb.append(lval / exp).append('.');
         long fval = lval % exp;
         for (int p = precision - 1; p > 0 && fval < POW10[p]; p--) {

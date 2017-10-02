@@ -727,7 +727,6 @@ abstract class AbstractEpoll0StreamChannel  extends AbstractEpoll0Channel implem
 
         @Override
         void epollInReady() {
-            long t3 = System.nanoTime();
             //final ChannelConfig config = config();
             //final EpollRecvByteAllocatorHandle allocHandle = recvBufAllocHandle();
             //allocHandle.edgeTriggered(isFlagSet(Native.EPOLLET));
@@ -747,10 +746,7 @@ abstract class AbstractEpoll0StreamChannel  extends AbstractEpoll0Channel implem
                     byteBuf.clear();
                     //allocHandle.lastBytesRead(doReadBytes(byteBuf));
                 int readBytes = doReadBytes(byteBuf);
-                long t2 = System.nanoTime();
-                Statistics.readTime.addAndGet(t2-t3);
                     if (readBytes <= 0) {
-                        Statistics.nothingReadCount.incrementAndGet();
                         // nothing was read, release the buffer.
                         //byteBuf.release();
                         byteBuf = null;
@@ -770,14 +766,8 @@ abstract class AbstractEpoll0StreamChannel  extends AbstractEpoll0Channel implem
 
 
                 if (close) {
-                    long t5 = System.nanoTime();
-                    Statistics.closeCount.incrementAndGet();
                     shutdownInput(false);
-                    long t6 = System.nanoTime();
-                    Statistics.closeTime.addAndGet(t6-t5);
                 }
-                long t4 = System.nanoTime();
-                Statistics.epollInReadyClientTime.addAndGet(t4-t3);
             } catch (Throwable t) {
                 //handleReadException(pipeline, byteBuf, t, close, allocHandle);
             } finally {
