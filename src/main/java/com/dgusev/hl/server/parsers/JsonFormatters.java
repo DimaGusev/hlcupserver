@@ -124,29 +124,30 @@ public class JsonFormatters {
         }
         return null;
     }
-    public static int formatVisitsList(List<VisitResponse> responseList, int size, ByteBuf encodeBuffer, byte[] buf) {
+    public static int formatVisitsList(VisitResponse[] responseList, int size, ByteBuf encodeBuffer, byte[] buf) {
         int position = 0;
         System.arraycopy(VISITS, 0, buf, 0, VISITS.length);
         position+=VISITS.length;
         for (int i = 0; i< size;i++) {
+            VisitResponse visitResponse = responseList[i];
             if (i == 0) {
                 System.arraycopy(MARK, 0, buf, position, MARK.length);
                 position+=MARK.length;
-                buf[position] = (byte)(48 + responseList.get(i).mark);
+                buf[position] = (byte)(48 + visitResponse.mark);
                 position++;
             } else {
                 System.arraycopy(MARK_COMMA, 0, buf, position, MARK_COMMA.length);
                 position+=MARK_COMMA.length;
-                buf[position] = (byte)(48 + responseList.get(i).mark);
+                buf[position] = (byte)(48 + visitResponse.mark);
                 position++;
             }
             System.arraycopy(PLACE, 0, buf, position, PLACE.length);
             position+=PLACE.length;
-            String place = responseList.get(i).place;
+            String place = visitResponse.place;
             position+=StringUTFCodec.encode(getValue(place), place.length(), buf, position);
             System.arraycopy(VISITED_AT, 0, buf, position, VISITED_AT.length);
             position+=VISITED_AT.length;
-            position+=encodeLong(responseList.get(i).visitedAt, buf, position);
+            position+=encodeLong(visitResponse.visitedAt, buf, position);
             System.arraycopy(CLOSE_OBJECT, 0, buf, position, CLOSE_OBJECT.length);
             position+=CLOSE_OBJECT.length;
         }

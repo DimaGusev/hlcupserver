@@ -313,7 +313,7 @@ public class TravelService {
         visits = visits;
     }
 
-    public int searchUserVisits(Integer userId, Long fromDate, Long toDate, String country, Integer toDistance, List<VisitResponse>  visitResponses) {
+    public int searchUserVisits(Integer userId, Long fromDate, Long toDate, String country, Integer toDistance, VisitResponse[]  visitResponses) {
         int position = 0;
         if (fromDate != null && toDate != null) {
             Visit[] userIndex = dateUserVisitIndex[userId];
@@ -323,7 +323,7 @@ public class TravelService {
             for (int i = 0; i < userIndex.length && userIndex[i] != null; i++) {
                 Visit visit = userIndex[i];
                 if (visit.visitedAt > fromDate && visit.visitedAt < toDate) {
-                    if (filterVisits(visit, country, toDistance, visitResponses.get(position))) {
+                    if (filterVisits(visit, country, toDistance, visitResponses[position])) {
                         position++;
                     }
                 }
@@ -337,7 +337,7 @@ public class TravelService {
             for (int i = 0; i < userIndex.length && userIndex[i] != null; i++) {
                 Visit visit = userIndex[i];
                 if (visit.visitedAt > fromDate) {
-                    if (filterVisits(visit, country, toDistance, visitResponses.get(position))) {
+                    if (filterVisits(visit, country, toDistance, visitResponses[position])) {
                         position++;
                     }
                 }
@@ -351,7 +351,7 @@ public class TravelService {
             for (int i = 0; i < userIndex.length && userIndex[i] != null; i++) {
                 Visit visit = userIndex[i];
                 if (visit.visitedAt < toDate) {
-                    if (filterVisits(visit, country, toDistance, visitResponses.get(position))) {
+                    if (filterVisits(visit, country, toDistance, visitResponses[position])) {
                         position++;
                     }
                 }
@@ -364,7 +364,7 @@ public class TravelService {
             }
             for (int i = 0; i < userIndex.length && userIndex[i] != null; i++) {
                 Visit visit = userIndex[i];
-                if (filterVisits(visit, country, toDistance, visitResponses.get(position))) {
+                if (filterVisits(visit, country, toDistance, visitResponses[position])) {
                     position++;
                 }
             }
@@ -398,7 +398,6 @@ public class TravelService {
 
     public Double calculateLocationMark(Integer locationId, Long fromDate, Long toDate, Integer fromAge, Integer toAge, String gender) {
         if (fromDate != null && toDate != null) {
-            LocalDate currentDate = LocalDate.now();
             Visit[] locationIndex = dateLocationVisitIndex[locationId];
             if (locationIndex == null) {
                 return 0.0;
@@ -407,7 +406,7 @@ public class TravelService {
             double count = 0;
             for (int i = 0; i < locationIndex.length && locationIndex[i] != null; i++) {
                 Visit visit = locationIndex[i];
-                if (visit.visitedAt > fromDate && visit.visitedAt < toDate && filterVisits(visit, fromAge, toAge, gender, currentDate)) {
+                if (visit.visitedAt > fromDate && visit.visitedAt < toDate && filterVisits(visit, fromAge, toAge, gender)) {
                     count++;
                     total += visit.mark;
                 }
@@ -418,7 +417,6 @@ public class TravelService {
                 return total / count;
             }
         } else if (fromDate != null) {
-            LocalDate currentDate = LocalDate.now();
             Visit[] locationIndex = dateLocationVisitIndex[locationId];
             if (locationIndex == null) {
                 return 0.0;
@@ -427,7 +425,7 @@ public class TravelService {
             double count = 0;
             for (int i = 0; i < locationIndex.length && locationIndex[i] != null; i++) {
                 Visit visit = locationIndex[i];
-                if (visit.visitedAt > fromDate && filterVisits(visit, fromAge, toAge, gender, currentDate)) {
+                if (visit.visitedAt > fromDate && filterVisits(visit, fromAge, toAge, gender)) {
                     count++;
                     total += visit.mark;
                 }
@@ -438,7 +436,6 @@ public class TravelService {
                 return total / count;
             }
         } else if (toDate != null) {
-            LocalDate currentDate = LocalDate.now();
             Visit[] locationIndex = dateLocationVisitIndex[locationId];
             if (locationIndex == null) {
                 return 0.0;
@@ -447,7 +444,7 @@ public class TravelService {
             double count = 0;
             for (int i = 0; i < locationIndex.length && locationIndex[i] != null; i++) {
                 Visit visit = locationIndex[i];
-                if (visit.visitedAt < toDate && filterVisits(visit, fromAge, toAge, gender, currentDate)) {
+                if (visit.visitedAt < toDate && filterVisits(visit, fromAge, toAge, gender)) {
                     count++;
                     total += visit.mark;
                 }
@@ -458,7 +455,6 @@ public class TravelService {
                 return total / count;
             }
         } else {
-            LocalDate currentDate = LocalDate.now();
             Visit[] locationIndex = dateLocationVisitIndex[locationId];
             if (locationIndex == null) {
                 return 0.0;
@@ -467,7 +463,7 @@ public class TravelService {
             double count = 0;
             for (int i = 0; i < locationIndex.length && locationIndex[i] != null; i++) {
                 Visit visit = locationIndex[i];
-                if (filterVisits(visit, fromAge, toAge, gender, currentDate)) {
+                if (filterVisits(visit, fromAge, toAge, gender)) {
                     count++;
                     total += visit.mark;
                 }
@@ -480,7 +476,7 @@ public class TravelService {
         }
     }
 
-    public boolean filterVisits(Visit v, Integer fromAge, Integer toAge, String gender, LocalDate currentDate) {
+    public boolean filterVisits(Visit v, Integer fromAge, Integer toAge, String gender) {
         if (fromAge == null && toAge == null && gender == null) {
             return true;
         }

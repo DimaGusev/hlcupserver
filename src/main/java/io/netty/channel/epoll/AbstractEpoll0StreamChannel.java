@@ -229,7 +229,7 @@ abstract class AbstractEpoll0StreamChannel  extends AbstractEpoll0Channel implem
         }
 
         if (buf.hasMemoryAddress() || buf.nioBufferCount() == 1) {
-            int writtenBytes = doWriteBytes(buf, writeSpinCount);
+            int writtenBytes = doWriteBytes(buf);
             in.removeBytes(writtenBytes);
             return writtenBytes == readableBytes;
         } else {
@@ -727,52 +727,25 @@ abstract class AbstractEpoll0StreamChannel  extends AbstractEpoll0Channel implem
 
         @Override
         void epollInReady() {
-            //final ChannelConfig config = config();
-            //final EpollRecvByteAllocatorHandle allocHandle = recvBufAllocHandle();
-            //allocHandle.edgeTriggered(isFlagSet(Native.EPOLLET));
-
-            final ChannelPipeline pipeline = pipeline();
-            //allocHandle.reset(config);
-            //epollInBefore();
-
-            ByteBuf byteBuf = null;
-            boolean close = false;
-            boolean condition = false;
             try {
-                    // we use a direct buffer here as the native implementations only be able
-                    // to handle direct buffers.
-                    //byteBuf = allocHandle.allocate(allocator);
-                    byteBuf = ((WorkerThread)Thread.currentThread()).READ_BUFFER;
-                    byteBuf.clear();
-                    //allocHandle.lastBytesRead(doReadBytes(byteBuf));
+                final ChannelPipeline pipeline = pipeline();
+                boolean close = false;
+                ByteBuf byteBuf = ((WorkerThread) Thread.currentThread()).READ_BUFFER;
+                byteBuf.clear();
                 int readBytes = doReadBytes(byteBuf);
-                    if (readBytes <= 0) {
-                        // nothing was read, release the buffer.
-                        //byteBuf.release();
-                        byteBuf = null;
-                        close = readBytes < 0;
-                    } else {
-                        //allocHandle.incMessagesRead(1);
-                        readPending = false;
-                        ChannelHandlerContext context = pipeline.firstContext();
-                        //ReferenceCountUtil.touch(byteBuf, context);
-                        ((ChannelInboundHandler) (pipeline.first())).channelRead(context, byteBuf);
-                        //pipeline.fireChannelRead(byteBuf);
-                        byteBuf = null;
-                    }
-
-                //allocHandle.readComplete();
-                //pipeline.fireChannelReadComplete();
-
-
+                if (readBytes <= 0) {
+                    close = readBytes < 0;
+                } else {
+                    ChannelHandlerContext context = pipeline.firstContext();
+                    ((ChannelInboundHandler) (pipeline.first())).channelRead(context, byteBuf);
+                }
                 if (close) {
                     shutdownInput(false);
                 }
-            } catch (Throwable t) {
-                //handleReadException(pipeline, byteBuf, t, close, allocHandle);
-            } finally {
-                //epollInFinally(config);
+            } catch (Exception ex) {
+                throw new RuntimeException(ex);
             }
+
         }
     }
 

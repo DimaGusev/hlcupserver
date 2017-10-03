@@ -308,63 +308,8 @@ public abstract class AbstractEpoll0Channel  extends AbstractChannel implements 
         return localReadAmount;
     }
 
-    public final int doWriteBytes(ByteBuf buf, int writeSpinCount) throws Exception {
-        return socket.writeAddress(buf.memoryAddress(), 0, buf.readableBytes());
-        /*int readableBytes = buf.readableBytes();
-        int writtenBytes = 0;
-        if (buf.hasMemoryAddress()) {
-            long memoryAddress = buf.memoryAddress();
-            int readerIndex = buf.readerIndex();
-            if (readerIndex != 0) {
-                System.out.println("Pff reader index");
-            }
-            int writerIndex = buf.writerIndex();
-            int k = 0;
-            for (int i = writeSpinCount; i > 0; --i) {
-                k++;
-                int localFlushedAmount = socket.writeAddress(memoryAddress, readerIndex, writerIndex);
-                if (localFlushedAmount > 0) {
-                    writtenBytes += localFlushedAmount;
-                    if (writtenBytes == readableBytes) {
-                        return writtenBytes;
-                    }
-                    readerIndex += localFlushedAmount;
-                } else {
-                    break;
-                }
-            }
-            if (k >1) {
-                System.out.println("Pfff k");
-            }
-        } else {
-            System.out.println("Pfffff write");
-            ByteBuffer nioBuf;
-            if (buf.nioBufferCount() == 1) {
-                nioBuf = buf.internalNioBuffer(buf.readerIndex(), buf.readableBytes());
-            } else {
-                nioBuf = buf.nioBuffer();
-            }
-            for (int i = writeSpinCount; i > 0; --i) {
-                int pos = nioBuf.position();
-                int limit = nioBuf.limit();
-                int localFlushedAmount = socket.write(nioBuf, pos, limit);
-                if (localFlushedAmount > 0) {
-                    nioBuf.position(pos + localFlushedAmount);
-                    writtenBytes += localFlushedAmount;
-                    if (writtenBytes == readableBytes) {
-                        return writtenBytes;
-                    }
-                } else {
-                    break;
-                }
-            }
-        }
-        if (writtenBytes < readableBytes) {
-            // Returned EAGAIN need to set EPOLLOUT
-            System.out.println("Pfffff EPOLLOUT");
-            setFlag(Native.EPOLLOUT);
-        }
-        return writtenBytes;*/
+    public final int doWriteBytes(ByteBuf buf) throws Exception {
+        return socket.writeAddress(buf.memoryAddress(), 0, buf.writerIndex());
     }
 
     protected abstract class AbstractEpollUnsafe extends AbstractUnsafe {
