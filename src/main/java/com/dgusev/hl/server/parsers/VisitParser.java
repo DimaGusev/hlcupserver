@@ -25,7 +25,7 @@ public class VisitParser {
     public static Visit parseVisit(char[] buf, int from, int count) {
         try {
             if (count == 0) {
-                throw new BadRequest();
+                throw BadRequest.INSTANCE;
             }
             String input = new String(buf, from, count);
             char[] value = getValue(input);
@@ -60,7 +60,7 @@ public class VisitParser {
                         end--;
                     }
                     if (end - colon == 3 && new String(value, colon, end + 1 - colon).equals("null")) {
-                        throw new BadRequest();
+                        throw BadRequest.INSTANCE;
                     } else {
                         while (value[colon] == '"') {
                             colon++;
@@ -90,7 +90,7 @@ public class VisitParser {
                         end--;
                     }
                     if (end - colon == 3 && new String(value, colon, end + 1 - colon).equals("null")) {
-                        throw new BadRequest();
+                        throw BadRequest.INSTANCE;
                     } else {
                         while (value[colon] == '"') {
                             colon++;
@@ -120,7 +120,7 @@ public class VisitParser {
                         end--;
                     }
                     if (end - colon == 3 && new String(value, colon, end + 1 - colon).equals("null")) {
-                        throw new BadRequest();
+                        throw BadRequest.INSTANCE;
                     } else {
                         while (value[colon] == '"') {
                             colon++;
@@ -150,7 +150,7 @@ public class VisitParser {
                         end--;
                     }
                     if (end - colon == 3 && new String(value, colon, end + 1 - colon).equals("null")) {
-                        throw new BadRequest();
+                        throw BadRequest.INSTANCE;
                     } else {
                         while (value[colon] == '"') {
                             colon++;
@@ -180,7 +180,7 @@ public class VisitParser {
                         end--;
                     }
                     if (end - colon == 3 && new String(value, colon, end + 1 - colon).equals("null")) {
-                        throw new BadRequest();
+                        throw BadRequest.INSTANCE;
                     } else {
                         while (value[colon] == '"') {
                             colon++;
@@ -190,18 +190,18 @@ public class VisitParser {
                         }
                         Integer mark = Integer.valueOf(new String(value, colon, end + 1 - colon));
                         if (mark < 0 || mark > 5) {
-                            throw new BadRequest();
+                            throw BadRequest.INSTANCE;
                         } else {
                             visit.mark = mark.byteValue();
                         }
                     }
                     position = totalEnd;
                 } else {
-                    throw new BadRequest();
+                    throw BadRequest.INSTANCE;
                 }
             }
         } catch (NumberFormatException | StringIndexOutOfBoundsException | ArrayIndexOutOfBoundsException | IOException | BadRequest ex) {
-            throw new BadRequest();
+            throw BadRequest.INSTANCE;
         } catch (Exception ex) {
             ex.printStackTrace();
             throw new RuntimeException(ex);

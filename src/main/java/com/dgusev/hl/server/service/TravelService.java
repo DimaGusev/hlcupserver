@@ -50,7 +50,7 @@ public class TravelService {
     public User getUser(Integer id) {
         User user = users[id];
         if (user == null) {
-            throw new EntityNotFound();
+            throw EntityNotFound.INSTANCE;
         } else {
             return user;
         }
@@ -58,10 +58,10 @@ public class TravelService {
 
     public void createUser(User user) {
         if (users[user.id] != null) {
-            throw new BadRequest();
+            throw BadRequest.INSTANCE;
         }
         if (userEmails.contains(user.email)) {
-            throw new BadRequest();
+            throw BadRequest.INSTANCE;
         }
         userEmails.add(user.email);
         user.age = 201 + Arrays.binarySearch(dates, user.birthDate);
@@ -70,10 +70,11 @@ public class TravelService {
         WebCache.cacheUser(user);
     }
 
-    public void validateUser(int id) {
+    public boolean validateUser(int id) {
         if (id >= 1100000 || id < 0 || users[id] == null) {
-            throw new EntityNotFound();
+            return false;
         }
+        return true;
     }
 
     public void updateUser(User user) {
@@ -81,7 +82,7 @@ public class TravelService {
         if (user.email != null) {
             if (!dbUser.email.equals(user.email)) {
                 if (userEmails.contains(user.email)) {
-                    throw new BadRequest();
+                    throw BadRequest.INSTANCE;
                 }
                 userEmails.remove(dbUser.email);
                 userEmails.add(user.email);
@@ -109,7 +110,7 @@ public class TravelService {
     public Location getLocation(Integer id) {
         Location user = locations[id];
         if (user == null) {
-            throw new EntityNotFound();
+            throw EntityNotFound.INSTANCE;
         } else {
             return user;
         }
@@ -118,7 +119,7 @@ public class TravelService {
     public void createLocation(Location location) {
 
         if (locations[location.id] != null) {
-            throw new BadRequest();
+            throw BadRequest.INSTANCE;
         } else {
             locations[location.id] = location;
         }
@@ -126,10 +127,11 @@ public class TravelService {
         WebCache.cacheLocation(location);
     }
 
-    public void validateLocation(int id) {
+    public boolean validateLocation(int id) {
         if (id >= 1100000 || id < 0 || locations[id] == null) {
-            throw new EntityNotFound();
+            return false;
         }
+        return true;
     }
 
     public void updateLocation(Location location) {
@@ -152,20 +154,15 @@ public class TravelService {
 
 
     public Visit getVisit(Integer id) {
-        Visit visit = visits[id];
-        if (visit == null) {
-            throw new EntityNotFound();
-        } else {
-            return visit;
-        }
+        return visits[id];
     }
 
     public void createVisit(Visit visit) {
         if (visit.user == -1 || visit.location == -1 || visit.id == -1) {
-            throw new BadRequest();
+            throw BadRequest.INSTANCE;
         }
         if (users[visit.user] == null || locations[visit.location] == null || visits[visit.id] != null) {
-            throw new BadRequest();
+            throw BadRequest.INSTANCE;
         }
         visits[visit.id] = visit;
         if (dateUserVisitIndex[visit.user] == null) {
@@ -199,21 +196,22 @@ public class TravelService {
         visits = visits;
     }
 
-    public void validateVisit(int id) {
+    public boolean validateVisit(int id) {
         if (id >= 11000000 || id < 0 || visits[id] == null) {
-            throw new EntityNotFound();
+            return false;
         }
+        return true;
     }
 
     public void updateVisit(Visit visit) {
         if (visit.user != -1) {
             if (users[visit.user] == null) {
-                throw new BadRequest();
+                throw BadRequest.INSTANCE;
             }
         }
         if (visit.location != -1) {
             if (locations[visit.location] == null) {
-                throw new BadRequest();
+                throw BadRequest.INSTANCE;
             }
         }
         Visit dbVisit = visits[visit.id];

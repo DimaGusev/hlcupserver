@@ -6,5 +6,8 @@ package com.dgusev.hl.server.exceptions;
  */
 
 public class EntityNotFound extends RuntimeException {
+    public static final EntityNotFound INSTANCE = new EntityNotFound();
 
+    private EntityNotFound() {
+    }
 }

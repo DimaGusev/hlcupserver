@@ -29,7 +29,7 @@ public class LocationParser {
     public static Location parseLocation(char[] buf, int from, int count) {
         try {
             if (count == 0) {
-                throw new BadRequest();
+                throw BadRequest.INSTANCE;
             }
             String input = new String(buf, from, count);
             char[] value = getValue(input);
@@ -64,7 +64,7 @@ public class LocationParser {
                         end--;
                     }
                     if (end - colon == 3 && new String(value, colon, end + 1 - colon).equals("null")) {
-                        throw new BadRequest();
+                        throw BadRequest.INSTANCE;
                     } else {
                         while (value[colon] == '"') {
                             colon++;
@@ -94,7 +94,7 @@ public class LocationParser {
                         end--;
                     }
                     if (end - colon == 3 && new String(value, colon, end + 1 - colon).equals("null")) {
-                        throw new BadRequest();
+                        throw BadRequest.INSTANCE;
                     } else {
                         while (value[colon] == '"') {
                             colon++;
@@ -104,7 +104,7 @@ public class LocationParser {
                         }
                         String country = parseString(value, colon, end + 1 - colon);
                         if (country.length()>50) {
-                            throw new BadRequest();
+                            throw BadRequest.INSTANCE;
                         } else {
                             location.country = country;
                         }
@@ -129,7 +129,7 @@ public class LocationParser {
                         end--;
                     }
                     if (end - colon == 3 && new String(value, colon, end + 1 - colon).equals("null")) {
-                        throw new BadRequest();
+                        throw BadRequest.INSTANCE;
                     } else {
                         while (value[colon] == '"') {
                             colon++;
@@ -139,7 +139,7 @@ public class LocationParser {
                         }
                         String city = parseString(value, colon, end + 1 - colon);
                         if (city.length()>50) {
-                            throw new BadRequest();
+                            throw BadRequest.INSTANCE;
                         } else {
                             location.city = city;
                         }
@@ -164,7 +164,7 @@ public class LocationParser {
                         end--;
                     }
                     if (end - colon == 3 && new String(value, colon, end + 1 - colon).equals("null")) {
-                        throw new BadRequest();
+                        throw BadRequest.INSTANCE;
                     } else {
                         while (value[colon] == '"') {
                             colon++;
@@ -194,7 +194,7 @@ public class LocationParser {
                         end--;
                     }
                     if (end - colon == 3 && new String(value, colon, end + 1 - colon).equals("null")) {
-                        throw new BadRequest();
+                        throw BadRequest.INSTANCE;
                     } else {
                         while (value[colon] == '"') {
                             colon++;
@@ -204,18 +204,18 @@ public class LocationParser {
                         }
                         Integer distance = Integer.valueOf(new String(value, colon, end + 1 - colon));
                         if (distance < 0) {
-                            throw new BadRequest();
+                            throw BadRequest.INSTANCE;
                         } else {
                             location.distance=distance;
                         }
                     }
                     position = totalEnd;
                 } else {
-                    throw new BadRequest();
+                    throw BadRequest.INSTANCE;
                 }
             }
         } catch (NumberFormatException | StringIndexOutOfBoundsException | ArrayIndexOutOfBoundsException | IOException | BadRequest ex) {
-            throw new BadRequest();
+            throw BadRequest.INSTANCE;
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }

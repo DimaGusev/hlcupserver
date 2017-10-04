@@ -30,7 +30,7 @@ public class UserParser {
     public static User parseUser(char[] buf, int from, int count) {
         try {
             if (count == 0) {
-                throw new BadRequest();
+                throw BadRequest.INSTANCE;
             }
             String input = new String(buf, from, count);
             char[] value = getValue(input);
@@ -66,7 +66,7 @@ public class UserParser {
                     }
 
                     if (end - colon == 3 && new String(value, colon, end + 1 - colon).equals("null")) {
-                        throw new BadRequest();
+                        throw BadRequest.INSTANCE;
                     } else {
                         while (value[colon] == '"') {
                             colon++;
@@ -98,7 +98,7 @@ public class UserParser {
                     }
 
                     if (end - colon == 3 && new String(value, colon, end + 1 - colon).equals("null")) {
-                        throw new BadRequest();
+                        throw BadRequest.INSTANCE;
                     } else {
                         while (value[colon] == '"') {
                             colon++;
@@ -128,7 +128,7 @@ public class UserParser {
                         end--;
                     }
                     if (end - colon == 3 && new String(value, colon, end + 1 - colon).equals("null")) {
-                        throw new BadRequest();
+                        throw BadRequest.INSTANCE;
                     } else {
                         while (value[colon] == '"') {
                             colon++;
@@ -138,7 +138,7 @@ public class UserParser {
                         }
                         String gender = new String(value, colon, end + 1 - colon);
                         if (!gender.equals("f") && !gender.equals("m")) {
-                            throw new BadRequest();
+                            throw BadRequest.INSTANCE;
                         } else {
                             user.gender = new String(value, colon, end + 1 - colon);
                         }
@@ -163,7 +163,7 @@ public class UserParser {
                         end--;
                     }
                     if (end - colon == 3 && new String(value, colon, end + 1 - colon).equals("null")) {
-                        throw new BadRequest();
+                        throw BadRequest.INSTANCE;
                     } else {
                         while (value[colon] == '"') {
                             colon++;
@@ -173,7 +173,7 @@ public class UserParser {
                         }
                         String email = new String(value, colon, end + 1 - colon);
                         if (email.length() > 100) {
-                            throw new BadRequest();
+                            throw BadRequest.INSTANCE;
                         }
                         user.email = email;
                     }
@@ -197,7 +197,7 @@ public class UserParser {
                         end--;
                     }
                     if (end - colon == 3 && new String(value, colon, end + 1 - colon).equals("null")) {
-                        throw new BadRequest();
+                        throw BadRequest.INSTANCE;
                     } else {
                         while (value[colon] == '"') {
                             colon++;
@@ -207,7 +207,7 @@ public class UserParser {
                         }
                         String firstName = parseString(value, colon, end + 1 - colon);
                         if (firstName.length() > 50) {
-                            throw new BadRequest();
+                            throw BadRequest.INSTANCE;
                         } else {
                             user.firstName = firstName;
                         }
@@ -232,7 +232,7 @@ public class UserParser {
                         end--;
                     }
                     if (end - colon == 3 && new String(value, colon, end + 1 - colon).equals("null")) {
-                        throw new BadRequest();
+                        throw BadRequest.INSTANCE;
                     } else {
                         while (value[colon] == '"') {
                             colon++;
@@ -242,18 +242,18 @@ public class UserParser {
                         }
                         String lastName = parseString(value, colon, end + 1 - colon);
                         if (lastName.length() > 50) {
-                            throw new BadRequest();
+                            throw BadRequest.INSTANCE;
                         } else {
                             user.lastName = lastName;
                         }
                     }
                     position = totalEnd;
                 } else {
-                    throw new BadRequest();
+                    throw BadRequest.INSTANCE;
                 }
             }
         } catch (NumberFormatException | StringIndexOutOfBoundsException | ArrayIndexOutOfBoundsException | IOException | BadRequest ex) {
-            throw new BadRequest();
+            throw BadRequest.INSTANCE;
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }

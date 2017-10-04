@@ -7,7 +7,9 @@ package com.dgusev.hl.server.exceptions;
 
 public class BadRequest extends RuntimeException {
 
-    public BadRequest() {
+    public static final BadRequest INSTANCE = new BadRequest();
+
+    private BadRequest() {
 
     }
 
