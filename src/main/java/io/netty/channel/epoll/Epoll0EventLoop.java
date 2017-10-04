@@ -216,52 +216,64 @@ public class Epoll0EventLoop extends Epoll0SingleThreadEventLoop {
     @Override
     protected void run() {
         if (isAcceptor) {
-            ExecutorService executorService = Executors.newFixedThreadPool(1);
-            executorService.submit(()->{
-                while (!Thread.currentThread().isInterrupted()) {
-                    try {
-                        Runnable runnable = pollTask();
-                        if (runnable != null) {
-                            runnable.run();
-                        }
-                    } catch (Throwable ex) {
-                        ex.printStackTrace();
-                    }
-                }
-            });
-            try {
-                Thread.sleep(5000);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-            executorService.shutdownNow();
-            try {
-                executorService.awaitTermination(Long.MAX_VALUE, TimeUnit.SECONDS);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
+            waitAcceptorInitialization();
             System.out.println("Acceptor started");
-            for (; ; ) {
-                try {
-                    int count = Native.epollWait(epollFd, events, timerFd, 5000, 0);
-                    if (count > 0) {
-                        processReady(events, count);
-                    }
-                } catch (Throwable t) {
-                    handleLoopException(t);
-                }
-            }
+            startSlowLoop();
         } else {
-            for (; ; ) {
+            startFastLoop();
+        }
+    }
+
+    private void startFastLoop() {
+        for (; ; ) {
+            try {
+                int count = Native.epollWait(epollFd, events, timerFd, 0, 0);
+                if (count > 0) {
+                    processReady(events, count);
+                }
+            } catch (Throwable t) {
+                handleLoopException(t);
+            }
+        }
+    }
+
+    private void startSlowLoop() {
+        for (; ; ) {
+            try {
+                int count = Native.epollWait(epollFd, events, timerFd, 5000, 0);
+                if (count > 0) {
+                    processReady(events, count);
+                }
+            } catch (Throwable t) {
+                handleLoopException(t);
+            }
+        }
+    }
+
+    private void waitAcceptorInitialization() {
+        ExecutorService executorService = Executors.newFixedThreadPool(1);
+        executorService.submit(()->{
+            while (!Thread.currentThread().isInterrupted()) {
                 try {
-                    int count = Native.epollWait(epollFd, events, timerFd, 0, 0);
-                    if (count > 0) {
-                        processReady(events, count);
+                    Runnable runnable = pollTask();
+                    if (runnable != null) {
+                        runnable.run();
                     }
-                } catch (Throwable t) {
-                    handleLoopException(t);
+                } catch (Throwable ex) {
+                    ex.printStackTrace();
                 }
             }
+        });
+        try {
+            Thread.sleep(5000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        executorService.shutdownNow();
+        try {
+            executorService.awaitTermination(Long.MAX_VALUE, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
     }
 

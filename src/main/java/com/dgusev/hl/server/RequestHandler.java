@@ -44,10 +44,21 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
     public static final ByteBuf EMPTY_VISITS = Unpooled.directBuffer().writeBytes(Unpooled.copiedBuffer("HTTP/1.1 200 OK\r\nConnection: keep-alive\r\nContent-Type: application/json;charset=utf-8\r\nContent-Length: 14\r\n\r\n{\"visits\": []}", CharsetUtil.UTF_8));
     public static final ByteBuf ZERO_MARK = Unpooled.directBuffer().writeBytes(Unpooled.copiedBuffer("HTTP/1.1 200 OK\r\nConnection: keep-alive\r\nContent-Type: application/json;charset=utf-8\r\nContent-Length: 11\r\n\r\n{\"avg\":0.0}", CharsetUtil.UTF_8));
 
-    public static final byte[] VISIT_HEADER = ("HTTP/1.1 200 OK\r\nConnection: keep-alive\r\nContent-Type: application/json;charset=utf-8\r\nContent-Length:     ").getBytes();
+    public static final byte[] VISIT_HEADER = ("HTTP/1.1 200 OK\r\nConnection: keep-alive\r\nContent-Type: application/json;charset=utf-8\r\nContent-Length:     \r\n\r\n").getBytes();
     public static final byte[] DOUBLE_NL = "\r\n\r\n".getBytes();
 
     public static final char[] CONTENT_0 = "Content-Length: 0".toCharArray();
+
+
+    //URLS
+    public static final char[] USERS_URL = "/users/".toCharArray();
+    public static final char[] USER_VISITS_URL = "/visits".toCharArray();
+    public static final char[] LOCATIONS_URL = "/locations/".toCharArray();
+    public static final char[] AVG_URL = "/avg".toCharArray();
+    public static final char[] VISITS_URL = "/visits/".toCharArray();
+    public static final char[] USERS_NEW_URL = "/users/new".toCharArray();
+    public static final char[] LOCATIONS_NEW_URL = "/locations/new".toCharArray();
+    public static final char[] VISITS_NEW_URL = "/visits/new".toCharArray();
 
     @Autowired
     private TravelService travelService;
@@ -69,7 +80,7 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
             }
             ByteBuf buf = (ByteBuf) msg;
             int count = StringUTFCodec.decode(buf, ARRAY_INPUT_CONTAINER, BUFFER);
-            if ((BUFFER[0] == 'P' && ((BUFFER[count - 1] != '\n' || BUFFER[count - 2] != '\r' || BUFFER[count - 3] != '}') && (!contains(CONTENT_0, BUFFER)))) || (BUFFER[0] == 'G' && (BUFFER[count - 1] != '\n' || BUFFER[count - 2] != '\r' || BUFFER[count - 3] != '\n' || BUFFER[count - 4] != '\r'))) {
+            if ((BUFFER[0] == 'P' && ((BUFFER[count - 1] != '\n' || BUFFER[count - 2] != '\r' || BUFFER[count - 3] != '}') && (!contains(BUFFER, CONTENT_0)))) || (BUFFER[0] == 'G' && (BUFFER[count - 1] != '\n' || BUFFER[count - 2] != '\r' || BUFFER[count - 3] != '\n' || BUFFER[count - 4] != '\r'))) {
                 ByteBuf byteBuf = ctx.channel().attr(attributeKey).get();
                 if (byteBuf == null) {
                     byteBuf = ctx.alloc().directBuffer(1000);
@@ -89,13 +100,11 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
                 while (BUFFER[pointer] != ' ') {
                     pointer++;
                 }
-                String query = new String(BUFFER, 4, pointer - 4);
-                if (query.startsWith("/users/")) {
-                    if (!query.contains("/visits")) {
-                        String idString = new String(BUFFER, start + 7, pointer - start - 7);
+                if (startsWith(BUFFER, 4, USERS_URL)) {
+                    if (!contains(BUFFER, 4, pointer, USER_VISITS_URL)) {
+                        int id = parseInt(BUFFER, start + 7, pointer - start - 7);
                         try {
-                            Integer id = Integer.valueOf(idString);
-                            if (id >= 1500000) {
+                            if (id >= 1500000 || id < 0) {
                                 throw new EntityNotFound();
                             }
                             travelService.validateUser(id);
@@ -107,10 +116,14 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
                         }
                     } else {
                         try {
-                            Integer id = null;
-                            try {
-                                id = Integer.valueOf(query.substring(7, query.indexOf('/', 7)));
-                            } catch (NumberFormatException ex) {
+                            String query = new String(BUFFER, 4, pointer - 4);
+                            int qIndex = indexOf(BUFFER, 11, pointer - 11, '/');
+                            int dCount = pointer - 11;
+                            if (qIndex != -1) {
+                                dCount = qIndex;
+                            }
+                            int id = parseInt(BUFFER, 11, dCount);
+                            if (id < 0) {
                                 throw new EntityNotFound();
                             }
                             int startQ = query.indexOf('?');
@@ -145,32 +158,26 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
                                     write(ctx, EMPTY_VISITS);
                                 } else {
                                     ENCODE_BUFFER.clear();
-                                    ENCODE_BUFFER.writeBytes(VISIT_HEADER);
-                                    ENCODE_BUFFER.writeBytes(DOUBLE_NL);
-                                    int responseSize = JsonFormatters.formatVisitsList(VISIT_RESPONSE, offset, ENCODE_BUFFER, ARRAY_OUTPUT_CONTAINER);
-                                    byte[] bCount = Integer.valueOf(responseSize).toString().getBytes();
-                                    ENCODE_BUFFER.writeBytes(DOUBLE_NL);
-                                    int position = ENCODE_BUFFER.writerIndex();
-                                    ENCODE_BUFFER.writerIndex(VISIT_HEADER.length - 4);
-                                    ENCODE_BUFFER.writeBytes(bCount);
-                                    ENCODE_BUFFER.writerIndex(position);
+                                    System.arraycopy(VISIT_HEADER, 0, ARRAY_OUTPUT_CONTAINER, 0, VISIT_HEADER.length);
+                                    int responseSize = JsonFormatters.formatVisitsList(VISIT_RESPONSE, offset, ARRAY_OUTPUT_CONTAINER, VISIT_HEADER.length);
+                                    System.arraycopy(DOUBLE_NL, 0, ARRAY_OUTPUT_CONTAINER, VISIT_HEADER.length + responseSize, DOUBLE_NL.length);
+                                    format(responseSize, ARRAY_OUTPUT_CONTAINER, VISIT_HEADER.length - 8);
+                                    ENCODE_BUFFER.writeBytes(ARRAY_OUTPUT_CONTAINER, 0, VISIT_HEADER.length + responseSize + DOUBLE_NL.length);
                                     write(ctx, ENCODE_BUFFER);
                                 }
                             }
                         } catch (EntityNotFound ex) {
                             write(ctx, RESPONSE_404);
-                            ;
 
                         } catch (NumberFormatException | BadRequest br) {
                             write(ctx, RESPONSE_400);
                         }
                     }
-                } else if (query.startsWith("/locations/")) {
-                    if (!query.contains("/avg")) {
-                        String idString = new String(BUFFER, start + 11, pointer - start - 11);
+                } else if (startsWith(BUFFER, 4, LOCATIONS_URL)) {
+                    if (!contains(BUFFER, 4, pointer, AVG_URL)) {
                         try {
-                            Integer id = Integer.valueOf(idString);
-                            if (id >= 1500000) {
+                            int id = parseInt(BUFFER, start + 11, pointer - start - 11);
+                            if (id >= 1500000 || id < 0) {
                                 throw new EntityNotFound();
                             }
                             travelService.validateLocation(id);
@@ -180,15 +187,17 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
                             write(ctx, ENCODE_BUFFER);
                         } catch (EntityNotFound | NumberFormatException ex) {
                             write(ctx, RESPONSE_404);
-                            ;
-
                         }
                     } else {
                         try {
-                            Integer id = null;
-                            try {
-                                id = Integer.valueOf(query.substring(11, query.indexOf('/', 11)));
-                            } catch (NumberFormatException ex) {
+                            String query = new String(BUFFER, 4, pointer - 4);
+                            int qIndex = indexOf(BUFFER, 15, pointer - 15, '/');
+                            int dCount = pointer - 15;
+                            if (qIndex != -1) {
+                                dCount = qIndex;
+                            }
+                            int id = parseInt(BUFFER, 15, dCount);
+                            if (id < 0) {
                                 throw new EntityNotFound();
                             }
                             int startQ = query.indexOf('?');
@@ -244,16 +253,14 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
                             }
                         } catch (EntityNotFound ex) {
                             write(ctx, RESPONSE_404);
-
                         } catch (NumberFormatException | BadRequest br) {
                             write(ctx, RESPONSE_400);
                         }
                     }
-                } else if (query.startsWith("/visits/")) {
-                    String idString = new String(BUFFER, start + 8, pointer - start - 8);
+                } else if (startsWith(BUFFER, 4, VISITS_URL)) {
                     try {
-                        Integer id = Integer.valueOf(idString);
-                        if (id >= 11000000) {
+                        int id = parseInt(BUFFER, start + 8, pointer - start - 8);
+                        if (id >= 11000000 || id < 0) {
                             throw new EntityNotFound();
                         }
                         ENCODE_BUFFER.clear();
@@ -261,7 +268,6 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
                         write(ctx, ENCODE_BUFFER);
                     } catch (EntityNotFound | NumberFormatException ex) {
                         write(ctx, RESPONSE_404);
-
                     }
                 }
             } else if (BUFFER[0] == 'P') {
@@ -270,9 +276,8 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
                 while (BUFFER[pointer] != ' ') {
                     pointer++;
                 }
-                String query = new String(BUFFER, 5, pointer - 5);
-                if (query.startsWith("/users")) {
-                    if (query.startsWith("/users/new")) {
+                if (startsWith(BUFFER, 5, USERS_URL)) {
+                    if (startsWith(BUFFER, 5, USERS_NEW_URL)) {
                         while (!(BUFFER[pointer] == '\n' && BUFFER[pointer - 1] == '\r' && BUFFER[pointer - 2] == '\n' && BUFFER[pointer - 3] == '\r')) {
                             pointer++;
                         }
@@ -284,12 +289,13 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
                             write(ctx, RESPONSE_400);
                         }
                     } else {
-                        String idString = new String(BUFFER, start + 7, pointer - start - 7);
-                        if (idString.contains("?")) {
-                            idString = idString.substring(0, idString.indexOf('?'));
+                        int qIndex = indexOf(BUFFER, start + 7, pointer - start - 7, '?');
+                        int dCount = pointer - start - 7;
+                        if (qIndex != -1) {
+                            dCount = qIndex;
                         }
                         try {
-                            Integer id = Integer.valueOf(idString);
+                            int id = parseInt(BUFFER, start +7, dCount);
                             travelService.validateUser(id);
                             while (!(BUFFER[pointer] == '\n' && BUFFER[pointer - 1] == '\r' && BUFFER[pointer - 2] == '\n' && BUFFER[pointer - 3] == '\r')) {
                                 pointer++;
@@ -304,8 +310,8 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
                             write(ctx, RESPONSE_400);
                         }
                     }
-                } else if (query.startsWith("/locations")) {
-                    if (query.startsWith("/locations/new")) {
+                } else if (startsWith(BUFFER, 5, LOCATIONS_URL)) {
+                    if (startsWith(BUFFER, 5, LOCATIONS_NEW_URL)) {
                         while (!(BUFFER[pointer] == '\n' && BUFFER[pointer - 1] == '\r' && BUFFER[pointer - 2] == '\n' && BUFFER[pointer - 3] == '\r')) {
                             pointer++;
                         }
@@ -317,12 +323,13 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
                             write(ctx, RESPONSE_400);
                         }
                     } else {
-                        String idString = new String(BUFFER, start + 11, pointer - start - 11);
-                        if (idString.contains("?")) {
-                            idString = idString.substring(0, idString.indexOf('?'));
+                        int qIndex = indexOf(BUFFER, start + 11, pointer - start - 11, '?');
+                        int dCount = pointer - start - 11;
+                        if (qIndex != -1) {
+                            dCount = qIndex;
                         }
                         try {
-                            Integer id = Integer.valueOf(idString);
+                            int id = parseInt(BUFFER, start + 11, dCount);
                             travelService.validateLocation(id);
                             while (!(BUFFER[pointer] == '\n' && BUFFER[pointer - 1] == '\r' && BUFFER[pointer - 2] == '\n' && BUFFER[pointer - 3] == '\r')) {
                                 pointer++;
@@ -337,8 +344,8 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
                             write(ctx, RESPONSE_400);
                         }
                     }
-                } else if (query.startsWith("/visits")) {
-                    if (query.startsWith("/visits/new")) {
+                } else if (startsWith(BUFFER, 5, VISITS_URL)) {
+                    if (startsWith(BUFFER, 5, VISITS_NEW_URL)) {
                         while (!(BUFFER[pointer] == '\n' && BUFFER[pointer - 1] == '\r' && BUFFER[pointer - 2] == '\n' && BUFFER[pointer - 3] == '\r')) {
                             pointer++;
                         }
@@ -350,12 +357,13 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
                             write(ctx, RESPONSE_400);
                         }
                     } else {
-                        String idString = new String(BUFFER, start + 8, pointer - start - 8);
-                        if (idString.contains("?")) {
-                            idString = idString.substring(0, idString.indexOf('?'));
+                        int qIndex = indexOf(BUFFER, start + 8, pointer - start - 8, '?');
+                        int dCount = pointer - start - 8;
+                        if (qIndex != -1) {
+                            dCount = qIndex;
                         }
                         try {
-                            Integer id = Integer.valueOf(idString);
+                            int id = parseInt(BUFFER, start + 8, dCount);
                             travelService.validateVisit(id);
                             while (!(BUFFER[pointer] == '\n' && BUFFER[pointer - 1] == '\r' && BUFFER[pointer - 2] == '\n' && BUFFER[pointer - 3] == '\r')) {
                                 pointer++;
@@ -395,15 +403,15 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
         return null;
     }
 
-    private static final int POW10[] = {1, 10, 100, 1000, 10000, 100000, 1000000};
+    private static final int POW10[] = {1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000};
 
-    public void release(ByteBuf byteBuf) {
+    private void release(ByteBuf byteBuf) {
         while (byteBuf.refCnt() != 0) {
             byteBuf.release();
         }
     }
 
-    public void format(double val, int precision, byte[] buf, int offset) {
+    private void format(double val, int precision, byte[] buf, int offset) {
         int exp = POW10[precision];
         long lval = (long) (val * exp + 0.5);
         int position = offset;
@@ -429,7 +437,23 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
         }
     }
 
-    public static boolean contains(char[] part, char[] buf) {
+    private void format(int val, byte[] buf, int offset) {
+        int position = offset;
+        boolean printZero = false;
+        for (int i = 5; i>=0; i--) {
+            int digit = (int)(val/POW10[i]);
+            if (digit == 0 && !printZero) {
+                continue;
+            }
+            buf[position++] = (byte)(48 + digit);
+            printZero=true;
+            val -= (val/POW10[i]) * POW10[i];
+        }
+    }
+
+
+
+    private  boolean contains(char[] buf, char[] part) {
         int position = 0;
         int maxLength = buf.length;
         char first = part[0];
@@ -450,5 +474,58 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
             }
         }
         return false;
+    }
+
+    private  boolean contains(char[] buf, int from, int to, char[] part) {
+        int position = from;
+        int maxLength = to;
+        char first = part[0];
+        int partSize = part.length;
+        while (position < maxLength) {
+            if (buf[position] == first) {
+                if (position + partSize > maxLength) {
+                    return false;
+                } else {
+                    int partOffset = 0;
+                    while ((partOffset < partSize) && buf[position++] == part[partOffset++]);
+                    if (partOffset == partSize) {
+                        return true;
+                    }
+                }
+            } else {
+                position++;
+            }
+        }
+        return false;
+    }
+
+    private boolean startsWith(char[] buf, int position, char[] part) {
+        for (int i = 0; i< part.length; i++) {
+            if (buf[position + i] != part[i]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private int parseInt(char[] buf, int from, int count) {
+        int id = 0;
+        for (int i = 0; i< count; i++) {
+            int digit = buf[from + count - i - 1] - 48;
+            if (digit < 0 || digit > 9 ) {
+                return -1;
+            }
+            id+=digit*POW10[i];
+        }
+        return id;
+    }
+
+    private int indexOf(char[] buf, int from, int count, char ch) {
+        for (int i = 0; i< count;i++) {
+            if (buf[from + i] == ch) {
+                return i;
+            }
+        }
+        return -1;
     }
 }

@@ -70,8 +70,8 @@ public class TravelService {
         WebCache.cacheUser(user);
     }
 
-    public void validateUser(Integer id) {
-        if (id >= 1100000 || users[id] == null) {
+    public void validateUser(int id) {
+        if (id >= 1100000 || id < 0 || users[id] == null) {
             throw new EntityNotFound();
         }
     }
@@ -126,8 +126,8 @@ public class TravelService {
         WebCache.cacheLocation(location);
     }
 
-    public void validateLocation(Integer id) {
-        if (id >= 1100000 || locations[id] == null) {
+    public void validateLocation(int id) {
+        if (id >= 1100000 || id < 0 || locations[id] == null) {
             throw new EntityNotFound();
         }
     }
@@ -199,8 +199,8 @@ public class TravelService {
         visits = visits;
     }
 
-    public void validateVisit(Integer id) {
-        if (id >= 11000000 || visits[id] == null) {
+    public void validateVisit(int id) {
+        if (id >= 11000000 || id < 0 || visits[id] == null) {
             throw new EntityNotFound();
         }
     }

@@ -124,9 +124,9 @@ public class JsonFormatters {
         }
         return null;
     }
-    public static int formatVisitsList(VisitResponse[] responseList, int size, ByteBuf encodeBuffer, byte[] buf) {
-        int position = 0;
-        System.arraycopy(VISITS, 0, buf, 0, VISITS.length);
+    public static int formatVisitsList(VisitResponse[] responseList, int size, byte[] buf, int offset) {
+        int position = offset;
+        System.arraycopy(VISITS, 0, buf, offset, VISITS.length);
         position+=VISITS.length;
         for (int i = 0; i< size;i++) {
             VisitResponse visitResponse = responseList[i];
@@ -153,8 +153,7 @@ public class JsonFormatters {
         }
         System.arraycopy(CLOSE_FULL, 0, buf, position, CLOSE_FULL.length);
         position+=CLOSE_FULL.length;
-        encodeBuffer.writeBytes(buf, 0, position);
-        return position;
+        return position - offset;
     }
 
     private static final int POW10[] = {1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000};
