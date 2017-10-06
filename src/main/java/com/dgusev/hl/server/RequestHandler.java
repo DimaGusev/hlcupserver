@@ -493,9 +493,9 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
 
 
 
-    private  boolean contains(char[] buf, char[] part) {
+    private  boolean contains(char[] buf, int count, char[] part) {
         int position = 0;
-        int maxLength = buf.length;
+        int maxLength = count;
         char first = part[0];
         int partSize = part.length;
         while (position < maxLength) {
@@ -503,9 +503,13 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
                 if (position + partSize >= maxLength) {
                     return false;
                 } else {
-                    int partOffset = 0;
-                    while ((partOffset < partSize) && buf[position++] == part[partOffset++]);
-                    if (partOffset == partSize) {
+                    int i = 0;
+                    for (; i< partSize;i++) {
+                        if (buf[position++] != part[i]) {
+                            break;
+                        }
+                    }
+                    if (i == partSize) {
                         return true;
                     }
                 }

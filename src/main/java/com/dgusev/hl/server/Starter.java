@@ -88,7 +88,7 @@ public class Starter implements CommandLineRunner {
 
         new Thread(() -> {
             ServerBootstrap serverBootstrap = new ServerBootstrap()
-                    .group(new Epoll0EventLoopGroup(true), new Epoll0EventLoopGroup(false,3, new WorkerThreadFactory(false)))
+                    .group(new Epoll0EventLoopGroup(true), new Epoll0EventLoopGroup(false,2, new WorkerThreadFactory(false)))
                     .channel(Epoll0ServerSocketChannel.class)
                     .childHandler(new ChannelInitializer<SocketChannel>() {
                         @Override
@@ -132,6 +132,7 @@ public class Starter implements CommandLineRunner {
             }
 
         });
+
         AtomicInteger userCount = new AtomicInteger();
         usersFileTreeMap.forEach((n,z) -> {
             try {
