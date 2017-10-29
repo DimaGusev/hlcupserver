@@ -47,7 +47,7 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
     private static final byte[] VISIT_HEADER = ("HTTP/1.1 200 OK\r\nConnection: keep-alive\r\nContent-Type: application/json;charset=utf-8\r\nContent-Length:     \r\n\r\n").getBytes();
     private static final byte[] DOUBLE_NL = "\r\n\r\n".getBytes();
 
-    private static final char[] CONTENT_0 = "Content-Length: 0".toCharArray();
+    private static final String CONTENT_0 = "Content-Length: 0";
 
 
     //URLS
@@ -80,7 +80,7 @@ public class RequestHandler extends ChannelInboundHandlerAdapter {
             }*/
             ByteBuf buf = (ByteBuf) msg;
             int count = StringUTFCodec.decode(buf, ARRAY_INPUT_CONTAINER, BUFFER);
-            /*if ((BUFFER[0] == 'P' && ((BUFFER[count - 1] != '\n' || BUFFER[count - 2] != '\r' || BUFFER[count - 3] != '}') && (!contains(BUFFER, CONTENT_0)))) || (BUFFER[0] == 'G' && (BUFFER[count - 1] != '\n' || BUFFER[count - 2] != '\r' || BUFFER[count - 3] != '\n' || BUFFER[count - 4] != '\r'))) {
+            /*if ((BUFFER[0] == 'P' && ((BUFFER[count - 1] != '\n' || BUFFER[count - 2] != '\r' || BUFFER[count - 3] != '}') && (!new String(BUFFER).contains(CONTENT_0)))) || (BUFFER[0] == 'G' && (BUFFER[count - 1] != '\n' || BUFFER[count - 2] != '\r' || BUFFER[count - 3] != '\n' || BUFFER[count - 4] != '\r'))) {
                 ByteBuf byteBuf = ctx.channel().attr(attributeKey).get();
                 if (byteBuf == null) {
                     byteBuf = ctx.alloc().directBuffer(1000);

@@ -1,25 +1,19 @@
 package com.dgusev.hl.server.threads;
 
-import com.dgusev.hl.server.stat.Statistics;
 import io.netty.channel.*;
 import io.netty.channel.epoll.AbstractEpoll0Channel;
 import io.netty.channel.epoll.Epoll0EventLoop;
 import io.netty.channel.epoll.Epoll0ServerSocketChannel;
-import io.netty.util.concurrent.Promise;
 import io.netty.util.concurrent.RejectedExecutionHandler;
-import io.netty.util.concurrent.RejectedExecutionHandlers;
 import io.netty.util.concurrent.SingleThreadEventExecutor;
 import io.netty.util.internal.ObjectUtil;
 import io.netty.util.internal.SystemPropertyUtil;
 import io.netty.util.internal.UnstableApi;
 
-import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.util.Date;
 import java.util.Queue;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ThreadFactory;
 
 /**
  * Created by dgusev on 24.09.2017.

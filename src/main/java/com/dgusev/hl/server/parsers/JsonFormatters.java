@@ -74,15 +74,6 @@ public class JsonFormatters {
         return stringBuilder.toString().getBytes();
     }
 
-    public static byte[] format(Visit visit) {
-        StringBuilder stringBuilder = new StringBuilder(130);
-        stringBuilder.append("{\"id\":").append(visit.id);
-        stringBuilder.append(",\"user\":").append(visit.user);
-        stringBuilder.append(",\"location\":").append(visit.location);
-        stringBuilder.append(",\"visited_at\":").append(visit.visitedAt);
-        stringBuilder.append(",\"mark\":").append(visit.mark);
-        return stringBuilder.append("}").toString().getBytes();
-    }
 
     public static int formatVisit(Visit visit, ByteBuf buf, byte[] encodeBuffer) {
         int position = 0;
@@ -107,15 +98,6 @@ public class JsonFormatters {
         return position;
     }
 
-
-    private static char[] getValue(StringBuilder s) {
-        try {
-            return ((char[]) fieldSB.get(s));
-        } catch (IllegalAccessException e) {
-
-        }
-        return null;
-    }
     private static char[] getValue(String s) {
         try {
             return ((char[]) fieldS.get(s));
@@ -157,48 +139,6 @@ public class JsonFormatters {
     }
 
     private static final int POW10[] = {1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000};
-
-    public static int encodeLong(long value, ByteBuffer byteBuffer) {
-        int position = 0;
-        if (value < 0) {
-            byteBuffer.put((byte)45);
-            position++;
-            value = -value;
-        }
-        boolean printZero = false;
-        for (int i = 9; i>=0; i--) {
-            int digit = (int)(value/POW10[i]);
-            if (digit == 0 && !printZero) {
-                continue;
-            }
-            byteBuffer.put((byte)(48 + digit));
-            position++;
-            printZero=true;
-            value -= (value/POW10[i]) * POW10[i];
-        }
-        return position;
-    }
-
-    public static int encodeLong(long value, ByteBuf byteBuffer) {
-        int position = 0;
-        if (value < 0) {
-            byteBuffer.writeByte((byte)45);
-            position++;
-            value = -value;
-        }
-        boolean printZero = false;
-        for (int i = 9; i>=0; i--) {
-            int digit = (int)(value/POW10[i]);
-            if (digit == 0 && !printZero) {
-                continue;
-            }
-            byteBuffer.writeByte((byte)(48 + digit));
-            position++;
-            printZero=true;
-            value -= (value/POW10[i]) * POW10[i];
-        }
-        return position;
-    }
 
     public static int encodeLong(long value, byte[] byteBuffer, int index) {
         int position = 0;
