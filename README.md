@@ -1,0 +1,1 @@
+Solution for HighLoad Cup competition on Java with result 124 seconds using Netty.
